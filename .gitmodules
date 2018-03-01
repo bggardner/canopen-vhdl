@@ -1,0 +1,3 @@
+[submodule "lib/can-lite-vhdl"]
+	path = lib/can-lite-vhdl
+	url = https://github.com/bggardner/can-lite-vhdl.git
