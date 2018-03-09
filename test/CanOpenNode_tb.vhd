@@ -13,8 +13,11 @@ architecture Behavioral of CanOpenNode_tb is
             DEFAULT_CANOPEN_DEVICE_TYPE     : std_logic_vector(31 downto 0) := (others => '0'); --! 0 is non-standard device type
             DEFAULT_CANOPEN_ID_VENDOR       : std_logic_vector(31 downto 0) := (others => '0'); --! 0 is unassigned by CiA
             DEFAULT_CANOPEN_ID_PRODUCT      : std_logic_vector(31 downto 0) := (others => '0');
-            DEFAULT_CANOPEN_HEARTBEAT_TIME  : std_logic_vector(15 downto 0) := x"03E8";
-            DEFAULT_CANOPEN_TPDO1_COMM_TYPE : std_logic_vector(7 downto 0) := x"01";
+            DEFAULT_CANOPEN_HEARTBEAT_PRODUCER_TIME  : std_logic_vector(15 downto 0) := x"03E8";
+            DEFAULT_CANOPEN_TPDO1_DISABLE   : std_logic := '0';
+            DEFAULT_CANOPEN_TPDO2_DISABLE   : std_logic := '0';
+            DEFAULT_CANOPEN_TPDO3_DISABLE   : std_logic := '0';
+            DEFAULT_CANOPEN_TPDO4_DISABLE   : std_logic := '0';
             DEFAULT_CANOPEN_NMT_STARTUP     : std_logic_vector(31 downto 0) := x"00000000"
         );
         port (
@@ -81,7 +84,7 @@ architecture Behavioral of CanOpenNode_tb is
     signal Reset_n      : std_logic;
     signal CanRx, CanTx, CanStimulus : std_logic;
     signal TxFrame      : CanBus.Frame;
-    signal TxFifoReadEnable, TxFifoEmpty : std_logic;
+    signal RxFifoWriteEnable, TxFifoReadEnable, TxFifoEmpty : std_logic;
     signal NmtState     : std_logic_vector(6 downto 0);
     signal CanStatus    : CanBus.Status;
 begin
@@ -121,7 +124,7 @@ begin
             CanRx => CanRx,
             CanTx => CanStimulus,
             RxFrame => open,
-            RxFifoWriteEnable => open,
+            RxFifoWriteEnable => RxFifoWriteEnable,
             RxFifoFull => '0',
             TxFrame => TxFrame,
             TxFifoReadEnable => TxFifoReadEnable,
@@ -144,6 +147,19 @@ begin
     begin
         Reset_n <= '0';
         TxFrame <= (
+            Id => (others => '0'),
+            Rtr => '0',
+            Dlc => (others => '0'),
+            Data => (others => (others => '0'))
+        );  
+        TxFifoEmpty <= '1';
+        wait for 10us;
+        Reset_n <= '1';
+        --wait until rising_edge(RxFifoWriteEnable); --! Wait for bootup message
+        wait for 100us;
+        
+        wait until falling_edge(Clock);
+        TxFrame <= (
             Id => b"11000000101", --! SDO Request
             Rtr => '0',
             Dlc => b"1111",
@@ -155,13 +171,59 @@ begin
                 others => (others => '0')
             )
         );  
-        TxFifoEmpty <= '1';
-        wait for 10us;
-        Reset_n <= '1';
-        wait until CanRx = '0'; --! Wait for bootup message
         TxFifoEmpty <= '0'; --! Trigger send
-        wait until TxFifoReadEnable = '1'; --! Wait until acknowledged
+        wait until rising_edge(TxFifoReadEnable); --! Wait until acknowledged
+        wait until falling_edge(Clock);
         TxFifoEmpty <= '1'; --! Do not send again
+        --wait until rising_edge(RxFifoWriteEnable); --! Wait until SDO response is received
+        wait for 250us;
+
+        wait until falling_edge(Clock);
+        TxFrame <= (
+            Id => CanOpen.FUNCTION_CODE_NMT & CanOpen.NMT_NODE_CONTROL,
+            Rtr => '0',
+            Dlc => b"0010",
+            Data => (
+                0 => CanOpen.NMT_NODE_CONTROL_OPERATIONAL,
+                1 => '0' & CanOpen.BROADCAST_NODE_ID,
+                others => (others => '0')
+            )
+        );  
+        TxFifoEmpty <= '0'; --! Trigger send
+        wait until rising_edge(TxFifoReadEnable); --! Wait until acknowledged
+        wait until falling_edge(Clock);
+        TxFifoEmpty <= '1'; --! Do not send again
+        --wait until rising_edge(RxFifoWriteEnable); --! Wait until SDO response is received
+        wait for 100us;
+        
+        wait until falling_edge(Clock);
+        TxFrame <= (
+            Id => CanOpen.FUNCTION_CODE_SYNC & b"0000000",
+            Rtr => '0',
+            Dlc => b"0000",
+            Data => (others => (others => '0'))
+        );  
+        TxFifoEmpty <= '0'; --! Trigger send
+        wait until rising_edge(TxFifoReadEnable); --! Wait until acknowledged
+        wait until falling_edge(Clock);
+        TxFifoEmpty <= '1'; --! Do not send again
+        --wait until rising_edge(RxFifoWriteEnable); --! Wait until SDO response is received
+        wait for 500us;
+        
+        wait until falling_edge(Clock);
+        TxFrame <= (
+            Id => CanOpen.FUNCTION_CODE_NMT & CanOpen.NMT_GFC,
+            Rtr => '0',
+            Dlc => b"0000",
+            Data => (others => (others => '0'))
+        );  
+        TxFifoEmpty <= '0'; --! Trigger send
+        wait until rising_edge(TxFifoReadEnable); --! Wait until acknowledged
+        wait until falling_edge(Clock);
+        TxFifoEmpty <= '1'; --! Do not send again
+        --wait until rising_edge(RxFifoWriteEnable); --! Wait until SDO response is received
+        wait for 100us;
+        
         wait;
     end process;
 

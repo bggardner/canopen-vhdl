@@ -11,8 +11,11 @@ entity CanOpenNode is
         DEFAULT_CANOPEN_DEVICE_TYPE     : std_logic_vector(31 downto 0) := (others => '0'); --! 0 is non-standard device type
         DEFAULT_CANOPEN_ID_VENDOR       : std_logic_vector(31 downto 0) := (others => '0'); --! 0 is unassigned by CiA
         DEFAULT_CANOPEN_ID_PRODUCT      : std_logic_vector(31 downto 0) := (others => '0');
-        DEFAULT_CANOPEN_HEARTBEAT_TIME  : std_logic_vector(15 downto 0) := x"03E8";
-        DEFAULT_CANOPEN_TPDO1_COMM_TYPE : std_logic_vector(7 downto 0) := x"01";
+        DEFAULT_CANOPEN_HEARTBEAT_PRODUCER_TIME : std_logic_vector(15 downto 0) := x"03E8";
+        DEFAULT_CANOPEN_TPDO1_DISABLE   : std_logic := '1';
+        DEFAULT_CANOPEN_TPDO2_DISABLE   : std_logic := '1';
+        DEFAULT_CANOPEN_TPDO3_DISABLE   : std_logic := '1';
+        DEFAULT_CANOPEN_TPDO4_DISABLE   : std_logic := '1';
         DEFAULT_CANOPEN_NMT_STARTUP     : std_logic_vector(31 downto 0) := x"00000000"
     );
     port (
@@ -45,6 +48,7 @@ architecture Behavioral of CanOpenNode is
         STATE_IDLE,
         STATE_CAN_RX_STROBE,
         STATE_CAN_RX_READ,
+        STATE_CAN_TX_WAIT,
         STATE_HEARTBEAT,
         STATE_TPDO1,
         STATE_TPDO2,
@@ -114,7 +118,7 @@ architecture Behavioral of CanOpenNode is
         
     --! Asynchronous Interrupts
 	signal Sync_buf             : std_logic;
-    signal HeartbeatInterrupt   : std_logic;
+    signal HeartbeatProducerInterrupt   : std_logic;
     signal Tpdo1Interrupt       : std_logic;
     signal Tpdo2Interrupt       : std_logic;
     signal Tpdo3Interrupt       : std_logic;
@@ -221,7 +225,7 @@ begin
     end process;
     
     --! Next state in state machine
-    process (CurrentState, TxAck, CanStatus.State, HeartbeatInterrupt, Tpdo1Interrupt, Tpdo2Interrupt, Tpdo3Interrupt, Tpdo4Interrupt, RxFifoEmpty, RxCobId.FunctionCode, RxCobId.NodeId, RxNmtNodeControlNodeId, NodeId_q, RxNmtNodeControlCommand)
+    process (CurrentState, TxAck, CanStatus.State, HeartbeatProducerInterrupt, Tpdo1Interrupt, Tpdo2Interrupt, Tpdo3Interrupt, Tpdo4Interrupt, RxFifoEmpty, TxFifoReadEnable, RxCobId.FunctionCode, RxCobId.NodeId, RxNmtNodeControlNodeId, NodeId_q, RxNmtNodeControlCommand)
     begin
         case CurrentState is
             when STATE_RESET =>
@@ -245,7 +249,7 @@ begin
             when STATE_IDLE =>
                 if CanBus."="(CanStatus.State, CanBus.STATE_RESET) or CanBus."="(CanStatus.State, CanBus.STATE_BUS_OFF) then
                     NextState <= STATE_IDLE;
-                elsif HeartbeatInterrupt = '1' then
+                elsif HeartbeatProducerInterrupt = '1' then
                     NextState <= STATE_HEARTBEAT;
                 elsif Tpdo1Interrupt = '1' then
                     NextState <= STATE_TPDO1;
@@ -261,17 +265,23 @@ begin
                     NextState <= STATE_IDLE;
                 end if;
             when STATE_HEARTBEAT =>
-                NextState <= STATE_IDLE;
+                NextState <= STATE_CAN_TX_WAIT;
             when STATE_TPDO1 =>
-                NextState <= STATE_IDLE;
+                NextState <= STATE_CAN_TX_WAIT;
             when STATE_TPDO2 =>
-                NextState <= STATE_IDLE;
+                NextState <= STATE_CAN_TX_WAIT;
             when STATE_TPDO3 =>
-                NextState <= STATE_IDLE;
+                NextState <= STATE_CAN_TX_WAIT;
             when STATE_TPDO4 =>
-                NextState <= STATE_IDLE;
+                NextState <= STATE_CAN_TX_WAIT;
             when STATE_SDO =>
-                NextState <= STATE_IDLE;
+                NextState <= STATE_CAN_TX_WAIT;
+            when STATE_CAN_TX_WAIT =>
+                if TxFifoReadEnable = '1' then
+                    NextState <= STATE_IDLE;
+                else
+                    NextState <= STATE_CAN_TX_WAIT;
+                end if;
             when STATE_CAN_RX_STROBE =>
                 NextState <= STATE_CAN_RX_READ;
             when STATE_CAN_RX_READ =>
@@ -350,21 +360,37 @@ begin
             end if;
         end if;
     end process;
-    
-    --! Heartbeat interrupt
+      
+    --! Timers
     process (Reset_n, Clock)
-        variable Counter    : integer range 0 to 65535 * (CLOCK_FREQUENCY / 1000);
+        variable HeartbeatProducerCounter   : integer range 0 to 65535;
+        variable MillisecondCounter         : integer range 0 to (CLOCK_FREQUENCY / 1000);
+        variable MillisecondEnable          : std_logic;
     begin
         if Reset_n = '0' then
-            Counter := 0;
-            HeartbeatInterrupt <= '0';
+            HeartbeatProducerCounter := 0;
+            MillisecondCounter := 0;
+            MillisecondEnable := '0';
+            HeartbeatProducerInterrupt <= '0';
         elsif rising_edge(Clock) then
-            Counter := Counter + 1;
-            if CurrentState = STATE_HEARTBEAT then
-                HeartbeatInterrupt <= '0';
-            elsif Counter = (unsigned(DEFAULT_CANOPEN_HEARTBEAT_TIME) * (CLOCK_FREQUENCY / 1000)) then
-                Counter := 0;
-                HeartbeatInterrupt <= '1';
+            if MillisecondCounter = (CLOCK_FREQUENCY / 1000) then
+                MillisecondCounter := 0;
+                MillisecondEnable := '1';
+            else
+                MillisecondCounter := MillisecondCounter + 1;
+                MillisecondEnable := '0';
+            end if;
+            if MillisecondEnable = '1' then 
+                if HeartbeatProducerCounter = unsigned(DEFAULT_CANOPEN_HEARTBEAT_PRODUCER_TIME) then
+                    HeartbeatProducerCounter := 0;
+                else
+                    HeartbeatProducerCounter := HeartbeatProducerCounter + 1;
+                end if;
+            end if;
+            if MillisecondEnable = '1' and HeartbeatProducerCounter = unsigned(DEFAULT_CANOPEN_HEARTBEAT_PRODUCER_TIME) then
+                HeartbeatProducerInterrupt <= '1';
+            elsif CurrentState = STATE_HEARTBEAT then
+                HeartbeatProducerInterrupt <= '0';
             end if;
         end if;
     end process;
@@ -372,7 +398,7 @@ begin
     TpdoInterruptEnable <= '1' when Sync_buf = '1' and NmtState_buf = CanOpen.NMT_STATE_OPERATIONAL else '0';
     
     --! TPDO1 interrupt
-    Tpdo1InterruptEnable <= '1' when TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO1 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1') else '0';
+    Tpdo1InterruptEnable <= '1' when DEFAULT_CANOPEN_TPDO1_DISABLE = '0' and (TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO1 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1')) else '0';
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -387,7 +413,7 @@ begin
     end process;
     
     --! TPDO2 interrupt
-    Tpdo2InterruptEnable <= '1' when TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO2 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1') else '0';
+    Tpdo2InterruptEnable <= '1' when DEFAULT_CANOPEN_TPDO2_DISABLE = '0' and (TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO2 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1')) else '0';
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -395,14 +421,14 @@ begin
         elsif rising_edge(Clock) then
             if Tpdo2InterruptEnable = '1' then
                 Tpdo2Interrupt <= '1';
-            elsif CurrentState = STATE_TPDO1 then
+            elsif CurrentState = STATE_TPDO2 then
                 Tpdo2Interrupt <= '0';
             end if;
         end if;
     end process;
 
     --! TPDO3 interrupt
-    Tpdo3InterruptEnable <= '1' when TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO3 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1') else '0';
+    Tpdo3InterruptEnable <= '1' when DEFAULT_CANOPEN_TPDO3_DISABLE = '0' and (TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO3 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1')) else '0';
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -410,14 +436,14 @@ begin
         elsif rising_edge(Clock) then
             if Tpdo3InterruptEnable = '1' then
                 Tpdo3Interrupt <= '1';
-            elsif CurrentState = STATE_TPDO1 then
+            elsif CurrentState = STATE_TPDO3 then
                 Tpdo3Interrupt <= '0';
             end if;
         end if;
     end process;
 
     --! TPDO4 interrupt
-    Tpdo4InterruptEnable <= '1' when TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO4 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1') else '0';
+    Tpdo4InterruptEnable <= '1' when DEFAULT_CANOPEN_TPDO4_DISABLE = '0' and (TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and RxCobId.FunctionCode = CanOpen.FUNCTION_CODE_TPDO4 and RxCobId.NodeId = NodeId_q and RxFrame_q.Rtr = '1')) else '0';
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -425,7 +451,7 @@ begin
         elsif rising_edge(Clock) then
             if Tpdo4InterruptEnable = '1' then
                 Tpdo4Interrupt <= '1';
-            elsif CurrentState = STATE_TPDO1 then
+            elsif CurrentState = STATE_TPDO4 then
                 Tpdo4Interrupt <= '0';
             end if;
         end if;
@@ -455,22 +481,22 @@ begin
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO1 =>
                 TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO1 & NodeId_q;
-                TxFrame.Dlc <= b"1000"; --! TODO: look this up via mappings
+                TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO2 =>
                 TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO2 & NodeId_q;
-                TxFrame.Dlc <= b"1000"; --! TODO: look this up via mappings
+                TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO3 =>
                 TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO3 & NodeId_q;
-                TxFrame.Dlc <= b"1000"; --! TODO: look this up via mappings
+                TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO4 =>
                 TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO4 & NodeId_q;
-                TxFrame.Dlc <= b"1000"; --! TODO: look this up via mappings
+                TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_SDO =>
@@ -522,7 +548,7 @@ begin
                     when CanOpen.ODI_ID_SERIAL =>
                         TxSdo.Cs <= CanOpen.SDO_CS_ABORT;
                         TxSdo.Data <= CanOpen.SDO_ABORT_RO;
-                    when CanOpen.ODI_HEARTBEAT_TIME =>
+                    when CanOpen.ODI_HEARTBEAT_PRODUCER_TIME =>
                         TxSdo.Cs <= CanOpen.SDO_CS_ABORT;
                         TxSdo.Data <= CanOpen.SDO_ABORT_RO;
                     when CanOpen.ODI_SDO_SERVER_COUNT =>
@@ -571,9 +597,6 @@ begin
                         TxSdo.Cs <= CanOpen.SDO_CS_ABORT;
                         TxSdo.Data <= CanOpen.SDO_ABORT_RO;
                     when CanOpen.ODI_TPDO1_MAPPING =>
-                        TxSdo.Cs <= CanOpen.SDO_CS_ABORT;
-                        TxSdo.Data <= CanOpen.SDO_ABORT_RO;
-                    when std_logic_vector(unsigned(CanOpen.ODI_TPDO1_MAPPING) + x"01") =>
                         TxSdo.Cs <= CanOpen.SDO_CS_ABORT;
                         TxSdo.Data <= CanOpen.SDO_ABORT_RO;
                     when CanOpen.ODI_TPDO2_MAPPING =>
@@ -618,10 +641,10 @@ begin
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"00";
                         TxSdo.Data <= DEFAULT_CANOPEN_ID_PRODUCT;
-                    when CanOpen.ODI_HEARTBEAT_TIME =>
+                    when CanOpen.ODI_HEARTBEAT_PRODUCER_TIME =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"10";
-                        TxSdo.Data <= x"0000" & DEFAULT_CANOPEN_HEARTBEAT_TIME;
+                        TxSdo.Data <= x"0000" & DEFAULT_CANOPEN_HEARTBEAT_PRODUCER_TIME;
                     when CanOpen.ODI_SDO_SERVER_COUNT =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"11";
@@ -647,7 +670,7 @@ begin
                     when CanOpen.ODI_TPDO1_COMM_ID =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"00";
-                        TxSdo.Data <=  '0' --! valid: PDO exists / is valid
+                        TxSdo.Data <=  DEFAULT_CANOPEN_TPDO1_DISABLE --! valid: PDO exists / is valid
                                     & '0' --! RTR: RTR allowed on this PDO
                                     & '0' --! frame: 11-bit CAN-ID valid (CAN base frame)
                                     & b"000000000000000000" & CanOpen.FUNCTION_CODE_TPDO1 & NodeId_q; --! 11-bit CAN-ID of the CAN base frame
@@ -662,7 +685,7 @@ begin
                     when CanOpen.ODI_TPDO2_COMM_ID =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"00";
-                        TxSdo.Data <=  '1' --! valid: PDO does not exist / is not valid
+                        TxSdo.Data <=  DEFAULT_CANOPEN_TPDO2_DISABLE --! valid: PDO does not exist / is not valid
                                     & '0' --! RTR: RTR allowed on this PDO
                                     & '0' --! frame: 11-bit CAN-ID valid (CAN base frame)
                                     & b"000000000000000000" & CanOpen.FUNCTION_CODE_TPDO2 & NodeId_q; --! 11-bit CAN-ID of the CAN base frame
@@ -677,7 +700,7 @@ begin
                     when CanOpen.ODI_TPDO3_COMM_ID =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"00";
-                        TxSdo.Data <=  '1' --! valid: PDO does not exist / is not valid
+                        TxSdo.Data <=  DEFAULT_CANOPEN_TPDO3_DISABLE --! valid: PDO does not exist / is not valid
                                     & '0' --! RTR: RTR allowed on this PDO
                                     & '0' --! frame: 11-bit CAN-ID valid (CAN base frame)
                                     & b"000000000000000000" & CanOpen.FUNCTION_CODE_TPDO3 & NodeId_q; --! 11-bit CAN-ID of the CAN base frame
@@ -692,7 +715,7 @@ begin
                     when CanOpen.ODI_TPDO4_COMM_ID =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"00";
-                        TxSdo.Data <=  '1' --! valid: PDO does not exist / is not valid
+                        TxSdo.Data <=  DEFAULT_CANOPEN_TPDO4_DISABLE --! valid: PDO does not exist / is not valid
                                     & '0' --! RTR: RTR allowed on this PDO
                                     & '0' --! frame: 11-bit CAN-ID valid (CAN base frame)
                                     & b"000000000000000000" & CanOpen.FUNCTION_CODE_TPDO4 & NodeId_q; --! 11-bit CAN-ID of the CAN base frame
@@ -703,11 +726,7 @@ begin
                     when CanOpen.ODI_TPDO1_MAPPING =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"11";
-                        TxSdo.Data <= x"00000001";
-                    when std_logic_vector(unsigned(CanOpen.ODI_TPDO1_MAPPING) + x"01") =>
-                        TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
-                        TxSdo.N <= b"00";
-                        TxSdo.Data <= DEFAULT_CANOPEN_DEVICE_TYPE;
+                        TxSdo.Data <= x"00000000"; --! Mapping disabled
                     when CanOpen.ODI_TPDO2_MAPPING =>
                         TxSdo.Cs <= CanOpen.SDO_SCS_IUR;
                         TxSdo.N <= b"11";

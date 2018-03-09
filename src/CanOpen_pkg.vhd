@@ -115,39 +115,43 @@ package CanOpen is
     
     --! CANopen Object Dictionary (OD)
     --! Mandatory indices per CiA 301
-    constant ODI_DEVICE_TYPE             : std_logic_vector(23 downto 0);
-    constant ODI_SYNC                    : std_logic_vector(23 downto 0);
-    constant ODI_ERROR                   : std_logic_vector(23 downto 0);
-    constant ODI_ID_LENGTH               : std_logic_vector(23 downto 0);
-    constant ODI_ID_VENDOR               : std_logic_vector(23 downto 0);
-    constant ODI_ID_PRODUCT              : std_logic_vector(23 downto 0);
-    constant ODI_ID_REVISION             : std_logic_vector(23 downto 0);
-    constant ODI_ID_SERIAL               : std_logic_vector(23 downto 0);
-    constant ODI_VERSION_COUNT           : std_logic_vector(23 downto 0);
-    constant ODI_VERSION_1               : std_logic_vector(23 downto 0);
-    constant ODI_VERSION_2               : std_logic_vector(23 downto 0);
+    constant ODI_DEVICE_TYPE            : std_logic_vector(23 downto 0);
+    constant ODI_SYNC                   : std_logic_vector(23 downto 0);
+    constant ODI_ERROR                  : std_logic_vector(23 downto 0);
+    constant ODI_ID_LENGTH              : std_logic_vector(23 downto 0);
+    constant ODI_ID_VENDOR              : std_logic_vector(23 downto 0);
+    constant ODI_ID_PRODUCT             : std_logic_vector(23 downto 0);
+    constant ODI_ID_REVISION            : std_logic_vector(23 downto 0);
+    constant ODI_ID_SERIAL              : std_logic_vector(23 downto 0);
+    constant ODI_VERSION_COUNT          : std_logic_vector(23 downto 0);
+    constant ODI_VERSION_1              : std_logic_vector(23 downto 0);
+    constant ODI_VERSION_2              : std_logic_vector(23 downto 0);
     --! Conditional indices per CiA 301
-    constant ODI_HEARTBEAT_TIME          : std_logic_vector(23 downto 0); --! If Heartbeat Protocol
-    constant ODI_SDO_SERVER_COUNT        : std_logic_vector(23 downto 0); --! If SDO
-    constant ODI_SDO_SERVER_RX_ID        : std_logic_vector(23 downto 0); --! CAN ID used for SDO client-to-server
-    constant ODI_SDO_SERVER_TX_ID        : std_logic_vector(23 downto 0); --! CAN ID used for SDO server-to-client
-    constant ODI_TPDO1_COMM_COUNT        : std_logic_vector(23 downto 0); --! If PDO1 TX
-    constant ODI_TPDO1_COMM_ID           : std_logic_vector(23 downto 0); --! CAN ID used for TPDO1 (0x180 + Address)
-    constant ODI_TPDO1_COMM_TYPE         : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO1
-    constant ODI_TPDO2_COMM_COUNT        : std_logic_vector(23 downto 0); --! If PDO2 TX
-    constant ODI_TPDO2_COMM_ID           : std_logic_vector(23 downto 0); --! CAN ID used for TPDO2 (0x181 + Address)
-    constant ODI_TPDO2_COMM_TYPE         : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO2
-    constant ODI_TPDO3_COMM_COUNT        : std_logic_vector(23 downto 0); --! If PDO3 TX
-    constant ODI_TPDO3_COMM_ID           : std_logic_vector(23 downto 0); --! CAN ID used for TPDO3 (0x182 + Address)
-    constant ODI_TPDO3_COMM_TYPE         : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO3
-    constant ODI_TPDO4_COMM_COUNT        : std_logic_vector(23 downto 0); --! If PDO4 TX
-    constant ODI_TPDO4_COMM_ID           : std_logic_vector(23 downto 0); --! CAN ID used for TPDO4 (0x183 + Address)
-    constant ODI_TPDO4_COMM_TYPE         : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO4
-    constant ODI_TPDO1_MAPPING           : std_logic_vector(23 downto 0);
-    constant ODI_TPDO2_MAPPING           : std_logic_vector(23 downto 0);
-    constant ODI_TPDO3_MAPPING           : std_logic_vector(23 downto 0);
-    constant ODI_TPDO4_MAPPING           : std_logic_vector(23 downto 0);
-    constant ODI_NMT_STARTUP             : std_logic_vector(23 downto 0);
+    constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0); --! If Heartbeat Protocol
+    constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0); --! If synchronous counter
+    constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0); --! If SDO
+    constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0); --! CAN ID used for SDO client-to-server
+    constant ODI_SDO_SERVER_TX_ID       : std_logic_vector(23 downto 0); --! CAN ID used for SDO server-to-client
+    constant ODI_TPDO1_COMM_COUNT       : std_logic_vector(23 downto 0); --! If PDO1 TX
+    constant ODI_TPDO1_COMM_ID          : std_logic_vector(23 downto 0); --! CAN ID used for TPDO1 (0x180 + Address)
+    constant ODI_TPDO1_COMM_TYPE        : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO1
+    constant ODI_TPDO2_COMM_COUNT       : std_logic_vector(23 downto 0); --! If PDO2 TX
+    constant ODI_TPDO2_COMM_ID          : std_logic_vector(23 downto 0); --! CAN ID used for TPDO2 (0x181 + Address)
+    constant ODI_TPDO2_COMM_TYPE        : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO2
+    constant ODI_TPDO3_COMM_COUNT       : std_logic_vector(23 downto 0); --! If PDO3 TX
+    constant ODI_TPDO3_COMM_ID          : std_logic_vector(23 downto 0); --! CAN ID used for TPDO3 (0x182 + Address)
+    constant ODI_TPDO3_COMM_TYPE        : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO3
+    constant ODI_TPDO4_COMM_COUNT       : std_logic_vector(23 downto 0); --! If PDO4 TX
+    constant ODI_TPDO4_COMM_ID          : std_logic_vector(23 downto 0); --! CAN ID used for TPDO4 (0x183 + Address)
+    constant ODI_TPDO4_COMM_TYPE        : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO4
+    constant ODI_TPDO1_MAPPING          : std_logic_vector(23 downto 0);
+    constant ODI_TPDO2_MAPPING          : std_logic_vector(23 downto 0);
+    constant ODI_TPDO3_MAPPING          : std_logic_vector(23 downto 0);
+    constant ODI_TPDO4_MAPPING          : std_logic_vector(23 downto 0);
+    constant ODI_NMT_STARTUP            : std_logic_vector(23 downto 0);
+    
+    --! CANopen Device Profiles
+    constant DEVICE_PROFILE_GENERIC_IO      : std_logic_vector(15 downto 0);
 end package CanOpen;
 
 package body CanOpen is
@@ -228,7 +232,8 @@ package body CanOpen is
     constant ODI_VERSION_1              : std_logic_vector(23 downto 0) := x"103001";
     constant ODI_VERSION_2              : std_logic_vector(23 downto 0) := x"103002";
     --! Conditional indices (based on supported features) per CiA 301
-    constant ODI_HEARTBEAT_TIME         : std_logic_vector(23 downto 0) := x"101700"; --! If Heartbeat Protocol
+    constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0) := x"101700"; --! If Heartbeat Protocol
+    constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0) := x"101900"; --! If synchronous counter
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0) := x"120000"; --! If SDO
     constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0) := x"120001"; --! CAN ID used for SDO client-to-server
     constant ODI_SDO_SERVER_TX_ID       : std_logic_vector(23 downto 0) := x"120002"; --! CAN ID used for SDO server-to-client
@@ -249,4 +254,7 @@ package body CanOpen is
     constant ODI_TPDO3_MAPPING          : std_logic_vector(23 downto 0) := x"1A0200";
     constant ODI_TPDO4_MAPPING          : std_logic_vector(23 downto 0) := x"1A0300";
     constant ODI_NMT_STARTUP            : std_logic_vector(23 downto 0) := x"1F8000";
+    
+    --! CANopen Device Profiles
+    constant DEVICE_PROFILE_GENERIC_IO      : std_logic_vector(15 downto 0) := x"0191";
 end package body CanOpen;
