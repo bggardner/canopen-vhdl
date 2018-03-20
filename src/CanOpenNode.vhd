@@ -459,11 +459,6 @@ begin
     
     RxFifoReadEnable <= '1' when CurrentState = STATE_CAN_RX_STROBE else '0';
     
-    process (CurrentState)
-    begin
-    
-    end process;
-    
     --! Load CAN TX registers
     TxFrame.Rtr <= '0'; --! TX of RTR unsupported
     process (CurrentState, NodeId_q, NmtState_buf, TxSdo.Cs, TxSdo.N, RxFrame_q.Data, TxSdo.Data, TxFrame_q)
