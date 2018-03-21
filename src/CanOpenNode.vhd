@@ -26,7 +26,7 @@ entity CanOpenNode is
         CanRx           : in  std_logic;
         CanTx           : out std_logic;
         
-        NodeId          : in integer range 1 to 127;
+        NodeId          : in integer range 0 to 127;
     
         NmtState        : out std_logic_vector(6 downto 0);
         CanStatus       : out CanBus.Status;
@@ -233,7 +233,7 @@ begin
             when STATE_RESET_APP =>
                     NextState <= STATE_RESET_COMM;
             when STATE_RESET_COMM =>
-                if CanBus."/="(CanStatus.State, CanBus.STATE_RESET) and CanBus."/="(CanStatus.State, CanBus.STATE_BUS_OFF) then
+                if CanBus."/="(CanStatus.State, CanBus.STATE_RESET) and CanBus."/="(CanStatus.State, CanBus.STATE_BUS_OFF) and NodeId /= CanOpen.BROADCAST_NODE_ID then
                     NextState <= STATE_BOOTUP;
                 else
                     NextState <= STATE_RESET_COMM;
