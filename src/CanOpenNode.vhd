@@ -225,7 +225,7 @@ begin
     end process;
     
     --! Next state in state machine
-    process (CurrentState, TxAck, CanStatus.State, HeartbeatProducerInterrupt, Tpdo1Interrupt, Tpdo2Interrupt, Tpdo3Interrupt, Tpdo4Interrupt, RxFifoEmpty, TxFifoReadEnable, RxCobId.FunctionCode, RxCobId.NodeId, RxNmtNodeControlNodeId, NodeId_q, RxNmtNodeControlCommand)
+    process (CurrentState, TxAck, CanStatus.State, NodeId, HeartbeatProducerInterrupt, Tpdo1Interrupt, Tpdo2Interrupt, Tpdo3Interrupt, Tpdo4Interrupt, RxFifoEmpty, TxFifoReadEnable, RxCobId.FunctionCode, RxCobId.NodeId, RxNmtNodeControlNodeId, NodeId_q, RxNmtNodeControlCommand)
     begin
         case CurrentState is
             when STATE_RESET =>
