@@ -178,12 +178,15 @@ begin
             RxFrame_q <= (
                 Id => (others => '0'),
                 Rtr => '0',
+                Ide => '0',
                 Dlc => (others => '0'),
                 Data => (others => (others => '0'))
-            );            RxFifoEmpty <= '1';
+            );
+            RxFifoEmpty <= '1';
             TxFrame_q <= (
                 Id => (others => '0'),
                 Rtr => '0',
+                Ide => '0',
                 Dlc => (others => '0'),
                 Data => (others => (others => '0'))
             );
@@ -465,42 +468,44 @@ begin
     end process;
     
     --! Load CAN TX registers
+    TxFrame.Id(28 downto 11) <= (others => '0'); --! TX of extended frames unsupported
     TxFrame.Rtr <= '0'; --! TX of RTR unsupported
+    TxFrame.Ide <= '0'; --! TX of extended frames unsupported
     process (CurrentState, NodeId_q, NmtState_buf, TxSdo.Cs, TxSdo.N, RxFrame_q.Data, TxSdo.Data, TxFrame_q)
     begin
         case CurrentState is
             when STATE_BOOTUP =>
-                TxFrame.Id <= CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL & NodeId_q;
+                TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL & NodeId_q;
                 TxFrame.Dlc <= b"0001";
                 TxFrame.Data <= (others => (others => '0'));
                 TxFifoWriteEnable <= '1';
             when STATE_HEARTBEAT =>
-                TxFrame.Id <= CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL & NodeId_q;
+                TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL & NodeId_q;
                 TxFrame.Dlc <= b"0001";
                 TxFrame.Data <= (0 => '0' & NmtState_buf, others => (others => '0'));
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO1 =>
-                TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO1 & NodeId_q;
+                TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_TPDO1 & NodeId_q;
                 TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO2 =>
-                TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO2 & NodeId_q;
+                TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_TPDO2 & NodeId_q;
                 TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO3 =>
-                TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO3 & NodeId_q;
+                TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_TPDO3 & NodeId_q;
                 TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_TPDO4 =>
-                TxFrame.Id <= CanOpen.FUNCTION_CODE_TPDO4 & NodeId_q;
+                TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_TPDO4 & NodeId_q;
                 TxFrame.Dlc <= b"0000"; --! TODO: look this up via mappings
                 TxFrame.Data <= (others => (others => '0')); --! TODO: look this up via mappings
                 TxFifoWriteEnable <= '1';
             when STATE_SDO =>
-                TxFrame.Id <= CanOpen.FUNCTION_CODE_SDO_TX & NodeId_q;
+                TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_SDO_TX & NodeId_q;
                 TxFrame.Dlc <= b"1000";
                 TxFrame.Data(0)(7 downto 5) <= TxSdo.Cs;
                 TxFrame.Data(0)(4) <= '0';
@@ -516,7 +521,7 @@ begin
                 TxFrame.Data(7) <= TxSdo.Data(31 downto 24);
                 TxFifoWriteEnable <= '1';
             when others =>
-                TxFrame.Id <= TxFrame_q.Id;
+                TxFrame.Id(10 downto 0) <= TxFrame_q.Id(10 downto 0);
                 TxFrame.Dlc <= TxFrame_q.Dlc;
                 TxFrame.Data <= TxFrame_q.Data;
                 TxFifoWriteEnable <= '0';

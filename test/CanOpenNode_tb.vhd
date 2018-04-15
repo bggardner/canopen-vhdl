@@ -149,6 +149,7 @@ begin
         TxFrame <= (
             Id => (others => '0'),
             Rtr => '0',
+            Ide => '0',
             Dlc => (others => '0'),
             Data => (others => (others => '0'))
         );  
@@ -160,8 +161,9 @@ begin
         
         wait until falling_edge(Clock);
         TxFrame <= (
-            Id => b"11000000101", --! SDO Request
+            Id => b"000000000000000000" & b"11000000101", --! SDO Request
             Rtr => '0',
+            Ide => '0',
             Dlc => b"1111",
             Data => (
                 0 => x"40", --! Upload
@@ -180,8 +182,9 @@ begin
 
         wait until falling_edge(Clock);
         TxFrame <= (
-            Id => CanOpen.FUNCTION_CODE_NMT & CanOpen.NMT_NODE_CONTROL,
+            Id => b"000000000000000000" & CanOpen.FUNCTION_CODE_NMT & CanOpen.NMT_NODE_CONTROL,
             Rtr => '0',
+            Ide => '0',
             Dlc => b"0010",
             Data => (
                 0 => CanOpen.NMT_NODE_CONTROL_OPERATIONAL,
@@ -198,8 +201,9 @@ begin
         
         wait until falling_edge(Clock);
         TxFrame <= (
-            Id => CanOpen.FUNCTION_CODE_SYNC & b"0000000",
+            Id => b"000000000000000000" & CanOpen.FUNCTION_CODE_SYNC & b"0000000",
             Rtr => '0',
+            Ide => '0',
             Dlc => b"0000",
             Data => (others => (others => '0'))
         );  
@@ -212,8 +216,9 @@ begin
         
         wait until falling_edge(Clock);
         TxFrame <= (
-            Id => CanOpen.FUNCTION_CODE_NMT & CanOpen.NMT_GFC,
+            Id => b"000000000000000000" & CanOpen.FUNCTION_CODE_NMT & CanOpen.NMT_GFC,
             Rtr => '0',
+            Ide => '0',
             Dlc => b"0000",
             Data => (others => (others => '0'))
         );  
