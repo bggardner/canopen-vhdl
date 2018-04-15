@@ -19,6 +19,8 @@ package CanOpen is
         Data    : std_logic_vector(31 downto 0);
     end record Sdo;
     
+    type NodeIdArray is array (integer range <>) of std_logic_vector(6 downto 0);
+    
 --    type NmtState is (
 --        NMT_STATE_INITIALISATION,
 --        NMT_STATE_PREOPERATIONAL,
@@ -127,6 +129,7 @@ package CanOpen is
     constant ODI_VERSION_1              : std_logic_vector(23 downto 0);
     constant ODI_VERSION_2              : std_logic_vector(23 downto 0);
     --! Conditional indices per CiA 301
+    constant ODI_HEARTBEAT_CONSUMER_TIME : std_logic_vector(23 downto 0); --! If Heartbeat consumer
     constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0); --! If Heartbeat Protocol
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0); --! If synchronous counter
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0); --! If SDO
@@ -232,6 +235,7 @@ package body CanOpen is
     constant ODI_VERSION_1              : std_logic_vector(23 downto 0) := x"103001";
     constant ODI_VERSION_2              : std_logic_vector(23 downto 0) := x"103002";
     --! Conditional indices (based on supported features) per CiA 301
+    constant ODI_HEARTBEAT_CONSUMER_TIME : std_logic_vector(23 downto 0) := x"101600"; --! If Heartbeat consumer
     constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0) := x"101700"; --! If Heartbeat Protocol
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0) := x"101900"; --! If synchronous counter
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0) := x"120000"; --! If SDO
