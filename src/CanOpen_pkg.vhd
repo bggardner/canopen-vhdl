@@ -114,6 +114,9 @@ package CanOpen is
     constant SDO_ABORT_DNE              : std_logic_vector(31 downto 0); --! Object does not exist in the object dictionary
     constant SDO_ABORT_PARAM_LONG       : std_logic_vector(31 downto 0); --! Data type does not match, length of service parameter too high
     constant SDO_ABORT_PARAM_SHORT      : std_logic_vector(31 downto 0); --! Data type does not match, length of service parameter too low
+    constant SDO_ABORT_PARAM_INVALID    : std_logic_vector(31 downto 0); --! Invalid value for parameter (download only)
+    constant SDO_ABORT_PARAM_HIGH       : std_logic_vector(31 downto 0); --! Value of parameter written too high (download only)
+    constant SDO_ABORT_PARAM_LOW        : std_logic_vector(31 downto 0); --! Value of parameter written too low (download only)
     
     --! CANopen Object Dictionary (OD)
     --! Mandatory indices per CiA 301
@@ -220,6 +223,9 @@ package body CanOpen is
     constant SDO_ABORT_PARAM            : std_logic_vector(31 downto 0) := x"06070010"; --! Data type does not match, length of service parameter does not match
     constant SDO_ABORT_PARAM_LONG       : std_logic_vector(31 downto 0) := x"06070012"; --! Data type does not match, length of service parameter too high
     constant SDO_ABORT_PARAM_SHORT      : std_logic_vector(31 downto 0) := x"06070013"; --! Data type does not match, length of service parameter too low
+    constant SDO_ABORT_PARAM_INVALID    : std_logic_vector(31 downto 0) := x"06090030"; --! Invalid value for parameter (download only)
+    constant SDO_ABORT_PARAM_HIGH       : std_logic_vector(31 downto 0) := x"06090031"; --! Value of parameter written too high (download only)
+    constant SDO_ABORT_PARAM_LOW        : std_logic_vector(31 downto 0) := x"06090032"; --! Value of parameter written too low (download only)
     
     --! CANopen Object Dictionary indices (ODIs) 
     --! Mandatory indices per CiA 301
