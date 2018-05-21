@@ -48,6 +48,7 @@ architecture Behavioral of CanOpenNode is
         STATE_IDLE,
         STATE_CAN_RX_STROBE,
         STATE_CAN_RX_READ,
+        STATE_CAN_TX_STROBE,
         STATE_CAN_TX_WAIT,
         STATE_HEARTBEAT,
         STATE_TPDO1,
@@ -94,7 +95,7 @@ architecture Behavioral of CanOpenNode is
     signal CurrentState     : State;
     signal NextState        : State;
     signal NodeId_q         : std_logic_vector(6 downto 0);
-    signal RxFrame, RxFrame_q, TxFrame, TxFrame_q : CanBus.Frame;
+    signal RxFrame, RxFrame_q, TxFrame, TxFrame_d, TxFrame_q : CanBus.Frame;
     signal RxFifoReadEnable : std_logic;
     signal RxFifoWriteEnable : std_logic;
     signal RxFifoEmpty      : std_logic;
@@ -143,7 +144,7 @@ begin
             RxFrame => RxFrame,
             RxFifoWriteEnable => RxFifoWriteEnable,
             RxFifoFull => RxFifoFull,
-            TxFrame => TxFrame,
+            TxFrame => TxFrame_q,
             TxFifoReadEnable => TxFifoReadEnable,
             TxFifoEmpty => TxFifoEmpty,
             TxAck => TxAck,
@@ -183,6 +184,13 @@ begin
                 Data => (others => (others => '0'))
             );
             RxFifoEmpty <= '1';
+            TxFrame_d <= (
+                Id => (others => '0'),
+                Rtr => '0',
+                Ide => '0',
+                Dlc => (others => '0'),
+                Data => (others => (others => '0'))
+            );
             TxFrame_q <= (
                 Id => (others => '0'),
                 Rtr => '0',
@@ -202,8 +210,11 @@ begin
             elsif RxFifoReadEnable = '1' then
                 RxFifoEmpty <= '1';
             end if;
+            if TxFifoReadEnable = '1' then
+                TxFrame_q <= TxFrame_d;
+            end if;
             if TxFifoWriteEnable = '1' then
-                TxFrame_q <= TxFrame;
+                TxFrame_d <= TxFrame;
             end if;
             if CanBus."="(CanStatus.State, CanBus.STATE_RESET) or CanBus."="(CanStatus.State, CanBus.STATE_BUS_OFF) then
                 TxFifoEmpty <= '1';
@@ -228,7 +239,7 @@ begin
     end process;
     
     --! Next state in state machine
-    process (CurrentState, TxAck, CanStatus.State, NodeId, HeartbeatProducerInterrupt, Tpdo1Interrupt, Tpdo2Interrupt, Tpdo3Interrupt, Tpdo4Interrupt, RxFifoEmpty, TxFifoReadEnable, RxCobId.FunctionCode, RxCobId.NodeId, RxNmtNodeControlNodeId, NodeId_q, RxNmtNodeControlCommand)
+    process (CurrentState, TxAck, CanStatus.State, NodeId, HeartbeatProducerInterrupt, Tpdo1Interrupt, Tpdo2Interrupt, Tpdo3Interrupt, Tpdo4Interrupt, RxFifoEmpty, NmtState_q, TxFifoReadEnable, RxCobId.FunctionCode, RxCobId.NodeId, RxNmtNodeControlNodeId, NodeId_q, RxNmtNodeControlCommand)
     begin
         case CurrentState is
             when STATE_RESET =>
@@ -242,7 +253,7 @@ begin
                     NextState <= STATE_RESET_COMM;
                 end if;
             when STATE_BOOTUP =>
-                NextState <= STATE_BOOTUP_WAIT;
+                NextState <= STATE_CAN_TX_STROBE;
             when STATE_BOOTUP_WAIT =>
                 if TxAck = '1' then --! Wait until boot-up message has been sent
                     NextState <= STATE_IDLE;
@@ -268,19 +279,23 @@ begin
                     NextState <= STATE_IDLE;
                 end if;
             when STATE_HEARTBEAT =>
-                NextState <= STATE_CAN_TX_WAIT;
+                NextState <= STATE_CAN_TX_STROBE;
             when STATE_TPDO1 =>
-                NextState <= STATE_CAN_TX_WAIT;
+                NextState <= STATE_CAN_TX_STROBE;
             when STATE_TPDO2 =>
-                NextState <= STATE_CAN_TX_WAIT;
+                NextState <= STATE_CAN_TX_STROBE;
             when STATE_TPDO3 =>
-                NextState <= STATE_CAN_TX_WAIT;
+                NextState <= STATE_CAN_TX_STROBE;
             when STATE_TPDO4 =>
-                NextState <= STATE_CAN_TX_WAIT;
+                NextState <= STATE_CAN_TX_STROBE;
             when STATE_SDO =>
+                NextState <= STATE_CAN_TX_STROBE;
+            when STATE_CAN_TX_STROBE =>
                 NextState <= STATE_CAN_TX_WAIT;
             when STATE_CAN_TX_WAIT =>
-                if TxFifoReadEnable = '1' then
+                if NmtState_q = CanOpen.NMT_STATE_INITIALISATION then
+                    NextState <= STATE_BOOTUP_WAIT;
+                elsif TxFifoReadEnable = '1' then
                     NextState <= STATE_IDLE;
                 else
                     NextState <= STATE_CAN_TX_WAIT;
@@ -466,7 +481,7 @@ begin
     TxFrame.Id(28 downto 11) <= (others => '0'); --! TX of extended frames unsupported
     TxFrame.Rtr <= '0'; --! TX of RTR unsupported
     TxFrame.Ide <= '0'; --! TX of extended frames unsupported
-    process (CurrentState, NodeId_q, NmtState_buf, TxSdo.Cs, TxSdo.N, RxFrame_q.Data, TxSdo.Data, TxFrame_q)
+    process (CurrentState, NodeId_q, NmtState_buf, TxSdo.Cs, TxSdo.N, RxFrame_q.Data, TxSdo.Data)
     begin
         case CurrentState is
             when STATE_BOOTUP =>
@@ -516,9 +531,9 @@ begin
                 TxFrame.Data(7) <= TxSdo.Data(31 downto 24);
                 TxFifoWriteEnable <= '1';
             when others =>
-                TxFrame.Id(10 downto 0) <= TxFrame_q.Id(10 downto 0);
-                TxFrame.Dlc <= TxFrame_q.Dlc;
-                TxFrame.Data <= TxFrame_q.Data;
+                TxFrame.Id(10 downto 0) <= (others => '0');
+                TxFrame.Dlc <= b"0000";
+                TxFrame.Data <= (others => (others => '0'));
                 TxFifoWriteEnable <= '0';
         end case;
     end process;
