@@ -16,7 +16,7 @@ entity CanOpenNode is
         DEFAULT_CANOPEN_TPDO2_DISABLE   : std_logic := '1';
         DEFAULT_CANOPEN_TPDO3_DISABLE   : std_logic := '1';
         DEFAULT_CANOPEN_TPDO4_DISABLE   : std_logic := '1';
-        DEFAULT_CANOPEN_NMT_STARTUP     : std_logic_vector(31 downto 0) := x"00000000"
+        DEFAULT_CANOPEN_NMT_STARTUP     : std_logic_vector(31 downto 0) := x"00000004" --! Starts in Pre-Operational
     );
     port (
         --! Signals common to all CANopen nodes
@@ -338,7 +338,7 @@ begin
                     NmtState_buf <= CanOpen.NMT_STATE_INITIALISATION;
                 when STATE_BOOTUP_WAIT =>
                     if TxAck = '1' then
-                        if DEFAULT_CANOPEN_NMT_STARTUP(3) = '1' then --! Per CiA 302-2
+                        if DEFAULT_CANOPEN_NMT_STARTUP(2) = '0' then --! Per CiA 302-2
                             NmtState_buf <= CanOpen.NMT_STATE_OPERATIONAL;
                         else
                             NmtState_buf <= CanOpen.NMT_STATE_PREOPERATIONAL;
