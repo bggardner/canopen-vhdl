@@ -26,7 +26,7 @@ entity CanOpenNode is
         CanRx           : in  std_logic;
         CanTx           : out std_logic;
         
-        NodeId          : in natural range 0 to 127;
+        NodeId          : in std_logic_vector(6 downto 0);
     
         NmtState        : out std_logic_vector(6 downto 0);
         CanStatus       : out CanBus.Status;
@@ -42,7 +42,6 @@ architecture Behavioral of CanOpenNode is
         STATE_RESET,
         STATE_RESET_APP,
         STATE_RESET_COMM,
-        STATE_RESET_BOOTUP,
         STATE_BOOTUP,
         STATE_BOOTUP_WAIT,
         STATE_IDLE,
@@ -247,7 +246,7 @@ begin
             when STATE_RESET_APP =>
                     NextState <= STATE_RESET_COMM;
             when STATE_RESET_COMM =>
-                if CanBus."/="(CanStatus.State, CanBus.STATE_RESET) and CanBus."/="(CanStatus.State, CanBus.STATE_BUS_OFF) and NodeId /= to_integer(unsigned(CanOpen.BROADCAST_NODE_ID)) then
+                if CanBus."/="(CanStatus.State, CanBus.STATE_RESET) and CanBus."/="(CanStatus.State, CanBus.STATE_BUS_OFF) and NodeId /= CanOpen.BROADCAST_NODE_ID then
                     NextState <= STATE_BOOTUP;
                 else
                     NextState <= STATE_RESET_COMM;
@@ -374,7 +373,7 @@ begin
             NodeId_q <= CanOpen.BROADCAST_NODE_ID;
         elsif rising_edge(Clock) then
             if CurrentState = STATE_RESET_COMM then
-                NodeId_q <= std_logic_vector(to_unsigned(NodeId, NodeId_q'length));
+                NodeId_q <= NodeId;
             end if;
         end if;
     end process;
