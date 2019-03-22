@@ -135,6 +135,7 @@ package CanOpen is
     constant ODI_HEARTBEAT_CONSUMER_TIME : std_logic_vector(23 downto 0); --! If Heartbeat consumer
     constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0); --! If Heartbeat Protocol
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0); --! If synchronous counter
+    constant ODI_ERROR_BEHAVIOR         : std_logic_vector(23 downto 0);
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0); --! If SDO
     constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0); --! CAN ID used for SDO client-to-server
     constant ODI_SDO_SERVER_TX_ID       : std_logic_vector(23 downto 0); --! CAN ID used for SDO server-to-client
@@ -244,6 +245,7 @@ package body CanOpen is
     constant ODI_HEARTBEAT_CONSUMER_TIME : std_logic_vector(23 downto 0) := x"101600"; --! If Heartbeat consumer
     constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0) := x"101700"; --! If Heartbeat Protocol
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0) := x"101900"; --! If synchronous counter
+    constant ODI_ERROR_BEHAVIOR         : std_logic_vector(23 downto 0) := x"102900";
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0) := x"120000"; --! If SDO
     constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0) := x"120001"; --! CAN ID used for SDO client-to-server
     constant ODI_SDO_SERVER_TX_ID       : std_logic_vector(23 downto 0) := x"120002"; --! CAN ID used for SDO server-to-client
