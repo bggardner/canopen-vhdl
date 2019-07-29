@@ -139,6 +139,7 @@ package CanOpen is
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0); --! If SDO
     constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0); --! CAN ID used for SDO client-to-server
     constant ODI_SDO_SERVER_TX_ID       : std_logic_vector(23 downto 0); --! CAN ID used for SDO server-to-client
+    constant ODI_GFC                    : std_logic_vector(23 downto 0); --! Global Failsafe Command
     constant ODI_TPDO1_COMM_COUNT       : std_logic_vector(23 downto 0); --! If PDO1 TX
     constant ODI_TPDO1_COMM_ID          : std_logic_vector(23 downto 0); --! CAN ID used for TPDO1 (0x180 + Address)
     constant ODI_TPDO1_COMM_TYPE        : std_logic_vector(23 downto 0); --! Transmission (trigger) type for TPDO1
@@ -249,6 +250,7 @@ package body CanOpen is
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0) := x"120000"; --! If SDO
     constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0) := x"120001"; --! CAN ID used for SDO client-to-server
     constant ODI_SDO_SERVER_TX_ID       : std_logic_vector(23 downto 0) := x"120002"; --! CAN ID used for SDO server-to-client
+    constant ODI_GFC                    : std_logic_vector(23 downto 0) := x"130000"; --! Global Failsafe Command
     constant ODI_TPDO1_COMM_COUNT       : std_logic_vector(23 downto 0) := x"180000"; --! If PDO1 TX
     constant ODI_TPDO1_COMM_ID          : std_logic_vector(23 downto 0) := x"180001"; --! CAN ID used for TPDO1 (0x180 + Address)
     constant ODI_TPDO1_COMM_TYPE        : std_logic_vector(23 downto 0) := x"180002"; --! Transmission (trigger) type for TPDO1
