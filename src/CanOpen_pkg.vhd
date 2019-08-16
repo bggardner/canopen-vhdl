@@ -1,10 +1,10 @@
 library ieee;
-use ieee.std_logic_1164.all;
+    use ieee.std_logic_1164.all;
     
 package CanOpen is
     ------------------------------------------------------------
     --! TYPES
-    ------------------------------------------------------------    
+    ------------------------------------------------------------
     type CobId is record
         FunctionCode    : std_logic_vector(3 downto 0);
         NodeId          : std_logic_vector(6 downto 0);
@@ -18,6 +18,14 @@ package CanOpen is
         Mux     : std_logic_vector(23 downto 0);
         Data    : std_logic_vector(31 downto 0);
     end record Sdo;
+    
+    type SdoSegment is record
+        Cs      : std_logic_vector(2 downto 0);
+        T       : std_logic;
+        N       : std_logic_vector(2 downto 0);
+        C       : std_logic;
+        Data    : std_logic_vector(55 downto 0);
+    end record SdoSegment;
     
     type NodeIdArray is array (integer range <>) of std_logic_vector(6 downto 0);
     
@@ -74,6 +82,7 @@ package CanOpen is
     --! CANopen NMT commands per CiA 301
     constant NMT_NODE_CONTROL           : std_logic_vector(6 downto 0);
     constant NMT_GFC                    : std_logic_vector(6 downto 0);
+    constant NMT_MASTER_NODE_ID         : std_logic_vector(6 downto 0);
     
     --! CANopen NMT node control commands per CiA 301
     constant NMT_NODE_CONTROL_OPERATIONAL       : std_logic_vector(7 downto 0);
@@ -108,6 +117,7 @@ package CanOpen is
     constant SDO_SCS_BUR                : std_logic_vector(2 downto 0); --! Block upload response
     
     --! CANopen SDO abort codes per CiA 301
+    constant SDO_ABORT_TOGGLE           : std_logic_vector(31 downto 0); --! Toggle bit not alternated
     constant SDO_ABORT_CS               : std_logic_vector(31 downto 0); --! Client/server command specifier not valid or unknown
     constant SDO_ABORT_WO               : std_logic_vector(31 downto 0); --! Attempt to read a write only object
     constant SDO_ABORT_RO               : std_logic_vector(31 downto 0); --! Attempt to write a read only object
@@ -117,23 +127,26 @@ package CanOpen is
     constant SDO_ABORT_PARAM_INVALID    : std_logic_vector(31 downto 0); --! Invalid value for parameter (download only)
     constant SDO_ABORT_PARAM_HIGH       : std_logic_vector(31 downto 0); --! Value of parameter written too high (download only)
     constant SDO_ABORT_PARAM_LOW        : std_logic_vector(31 downto 0); --! Value of parameter written too low (download only)
+    constant SDO_ABORT_GENERAL          : std_logic_vector(31 downto 0); --! General error
     
     --! CANopen Object Dictionary (OD)
     --! Mandatory indices per CiA 301
     constant ODI_DEVICE_TYPE            : std_logic_vector(23 downto 0);
-    constant ODI_SYNC                   : std_logic_vector(23 downto 0);
     constant ODI_ERROR                  : std_logic_vector(23 downto 0);
     constant ODI_ID_LENGTH              : std_logic_vector(23 downto 0);
     constant ODI_ID_VENDOR              : std_logic_vector(23 downto 0);
-    constant ODI_ID_PRODUCT             : std_logic_vector(23 downto 0);
-    constant ODI_ID_REVISION            : std_logic_vector(23 downto 0);
-    constant ODI_ID_SERIAL              : std_logic_vector(23 downto 0);
     constant ODI_VERSION_COUNT          : std_logic_vector(23 downto 0);
     constant ODI_VERSION_1              : std_logic_vector(23 downto 0);
     constant ODI_VERSION_2              : std_logic_vector(23 downto 0);
-    --! Conditional indices per CiA 301
+    --! Conditional/optional indices per CiA 301
+    constant ODI_SYNC                   : std_logic_vector(23 downto 0); --! If PDO communication on a synchronous base
+    constant ODI_TIME                   : std_logic_vector(23 downto 0); --! If TIME producer/consumer
+    constant ODI_EMCY                   : std_logic_vector(23 downto 0); --! If Emergency supported
     constant ODI_HEARTBEAT_CONSUMER_TIME : std_logic_vector(23 downto 0); --! If Heartbeat consumer
     constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0); --! If Heartbeat Protocol
+    constant ODI_ID_PRODUCT             : std_logic_vector(23 downto 0);
+    constant ODI_ID_REVISION            : std_logic_vector(23 downto 0);
+    constant ODI_ID_SERIAL              : std_logic_vector(23 downto 0);
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0); --! If synchronous counter
     constant ODI_ERROR_BEHAVIOR         : std_logic_vector(23 downto 0);
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0); --! If SDO
@@ -183,6 +196,7 @@ package body CanOpen is
     --! CANopen NMT commands per CiA 301
     constant NMT_NODE_CONTROL           : std_logic_vector(6 downto 0) := b"0000000";
     constant NMT_GFC                    : std_logic_vector(6 downto 0) := b"0000001";
+    constant NMT_MASTER_NODE_ID         : std_logic_vector(6 downto 0) := b"1110001";
     
     --! CANopen NMT node control commands
     constant NMT_NODE_CONTROL_OPERATIONAL       : std_logic_vector(7 downto 0) := x"01";
@@ -217,6 +231,7 @@ package body CanOpen is
     constant SDO_SCS_BUR                : std_logic_vector(2 downto 0) := b"110"; --! Block upload response
       
     --! CANopen SDO abort codes per CiA 301
+    constant SDO_ABORT_TOGGLE           : std_logic_vector(31 downto 0) := x"05030000"; --! Toggle bit not alternated
     constant SDO_ABORT_CS               : std_logic_vector(31 downto 0) := x"05040001"; --! Client/server command specifier not valid or unknown
     constant SDO_ABORT_ACCESS           : std_logic_vector(31 downto 0) := x"06010000"; --! Unsupported access to an object
     constant SDO_ABORT_WO               : std_logic_vector(31 downto 0) := x"06010001"; --! Attempt to read a write only object
@@ -228,23 +243,26 @@ package body CanOpen is
     constant SDO_ABORT_PARAM_INVALID    : std_logic_vector(31 downto 0) := x"06090030"; --! Invalid value for parameter (download only)
     constant SDO_ABORT_PARAM_HIGH       : std_logic_vector(31 downto 0) := x"06090031"; --! Value of parameter written too high (download only)
     constant SDO_ABORT_PARAM_LOW        : std_logic_vector(31 downto 0) := x"06090032"; --! Value of parameter written too low (download only)
+    constant SDO_ABORT_GENERAL          : std_logic_vector(31 downto 0) := x"08000000"; --! General error
     
     --! CANopen Object Dictionary indices (ODIs) 
     --! Mandatory indices per CiA 301
     constant ODI_DEVICE_TYPE            : std_logic_vector(23 downto 0) := x"100000";
     constant ODI_ERROR                  : std_logic_vector(23 downto 0) := x"100100";
-    constant ODI_SYNC                   : std_logic_vector(23 downto 0) := x"100500";
     constant ODI_ID_LENGTH              : std_logic_vector(23 downto 0) := x"101800";
     constant ODI_ID_VENDOR              : std_logic_vector(23 downto 0) := x"101801";
-    constant ODI_ID_PRODUCT             : std_logic_vector(23 downto 0) := x"101802";
-    constant ODI_ID_REVISION            : std_logic_vector(23 downto 0) := x"101803";
-    constant ODI_ID_SERIAL              : std_logic_vector(23 downto 0) := x"101804";
     constant ODI_VERSION_COUNT          : std_logic_vector(23 downto 0) := x"103000";
     constant ODI_VERSION_1              : std_logic_vector(23 downto 0) := x"103001";
     constant ODI_VERSION_2              : std_logic_vector(23 downto 0) := x"103002";
     --! Conditional indices (based on supported features) per CiA 301
+    constant ODI_SYNC                   : std_logic_vector(23 downto 0) := x"100500"; --! If PDO communication on a synchronous base
+    constant ODI_TIME                   : std_logic_vector(23 downto 0) := x"101200"; --! If TIME producer/consumer
+    constant ODI_EMCY                   : std_logic_vector(23 downto 0) := x"101400"; --! If Emergency supported
     constant ODI_HEARTBEAT_CONSUMER_TIME : std_logic_vector(23 downto 0) := x"101600"; --! If Heartbeat consumer
     constant ODI_HEARTBEAT_PRODUCER_TIME : std_logic_vector(23 downto 0) := x"101700"; --! If Heartbeat Protocol
+    constant ODI_ID_PRODUCT             : std_logic_vector(23 downto 0) := x"101802";
+    constant ODI_ID_REVISION            : std_logic_vector(23 downto 0) := x"101803";
+    constant ODI_ID_SERIAL              : std_logic_vector(23 downto 0) := x"101804";
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0) := x"101900"; --! If synchronous counter
     constant ODI_ERROR_BEHAVIOR         : std_logic_vector(23 downto 0) := x"102900";
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0) := x"120000"; --! If SDO
