@@ -171,6 +171,43 @@ package CanOpen is
     constant ODI_TPDO4_MAPPING          : std_logic_vector(23 downto 0);
     constant ODI_NMT_STARTUP            : std_logic_vector(23 downto 0);
     
+    --! Emergency error codes
+    constant EMCY_EEC_NO_ERROR          : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_GENERIC           : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_CURRENT           : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_CURRENT_INPUT     : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_CURRENT_INSIDE    : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_CURRENT_OUTPUT    : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_VOLTAGE           : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_VOLTAGE_MAINS     : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_VOLTAGE_INSIDE    : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_VOLTAGE_OUTPUT    : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_TEMPERATURE       : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_TEMPERATURE_AMBIENT : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_TEMPERATURE_DEVICE : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_HARDWARE          : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_SOFTWARE          : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_SOFTWARE_INTERNAL : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_SOFTWARE_USER     : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_SOFTWARE_DATA_SET : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_ADDITIONAL_MODULES : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_MONITORING        : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_COMMUNICATION     : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_CAN_OVERRUN       : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_CAN_ERROR_PASSIVE : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_HEARTBEAT         : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_BUS_OFF_RECOVERY  : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_CAN_ID_COLLISION  : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_PROTOCOL          : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_PDO_NOT_PROCESSED : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_PDO_LENGTH_EXCEEDED : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_DAM_MPDO_NA       : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_SYNC_LENGTH       : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_RPDO_TIMEOUT      : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_EXTERNAL          : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_ADDITIONAL_FUNCTIONS : std_logic_vector(15 downto 0);
+    constant EMCY_EEC_DEVICE_SPECIFIC   : std_logic_vector(15 downto 0);
+    
     --! CANopen Device Profiles
     constant DEVICE_PROFILE_GENERIC_IO      : std_logic_vector(15 downto 0);
 end package CanOpen;
@@ -286,7 +323,44 @@ package body CanOpen is
     constant ODI_TPDO3_MAPPING          : std_logic_vector(23 downto 0) := x"1A0200";
     constant ODI_TPDO4_MAPPING          : std_logic_vector(23 downto 0) := x"1A0300";
     constant ODI_NMT_STARTUP            : std_logic_vector(23 downto 0) := x"1F8000";
-    
+
+    --! Emergency error codes
+    constant EMCY_EEC_NO_ERROR          : std_logic_vector(15 downto 0) := x"0000";
+    constant EMCY_EEC_GENERIC           : std_logic_vector(15 downto 0) := x"1000";
+    constant EMCY_EEC_CURRENT           : std_logic_vector(15 downto 0) := x"2000";
+    constant EMCY_EEC_CURRENT_INPUT     : std_logic_vector(15 downto 0) := x"2100";
+    constant EMCY_EEC_CURRENT_INSIDE    : std_logic_vector(15 downto 0) := x"2200";
+    constant EMCY_EEC_CURRENT_OUTPUT    : std_logic_vector(15 downto 0) := x"2300";
+    constant EMCY_EEC_VOLTAGE           : std_logic_vector(15 downto 0) := x"3000";
+    constant EMCY_EEC_VOLTAGE_MAINS     : std_logic_vector(15 downto 0) := x"3100";
+    constant EMCY_EEC_VOLTAGE_INSIDE    : std_logic_vector(15 downto 0) := x"3200";
+    constant EMCY_EEC_VOLTAGE_OUTPUT    : std_logic_vector(15 downto 0) := x"3300";
+    constant EMCY_EEC_TEMPERATURE       : std_logic_vector(15 downto 0) := x"4000";
+    constant EMCY_EEC_TEMPERATURE_AMBIENT : std_logic_vector(15 downto 0) := x"4100";
+    constant EMCY_EEC_TEMPERATURE_DEVICE : std_logic_vector(15 downto 0) := x"4200";
+    constant EMCY_EEC_HARDWARE          : std_logic_vector(15 downto 0) := x"5000";
+    constant EMCY_EEC_SOFTWARE          : std_logic_vector(15 downto 0) := x"6000";
+    constant EMCY_EEC_SOFTWARE_INTERNAL : std_logic_vector(15 downto 0) := x"6100";
+    constant EMCY_EEC_SOFTWARE_USER     : std_logic_vector(15 downto 0) := x"6200";
+    constant EMCY_EEC_SOFTWARE_DATA_SET : std_logic_vector(15 downto 0) := x"6300";
+    constant EMCY_EEC_ADDITIONAL_MODULES : std_logic_vector(15 downto 0) := x"7000";
+    constant EMCY_EEC_MONITORING        : std_logic_vector(15 downto 0) := x"8000";
+    constant EMCY_EEC_COMMUNICATION     : std_logic_vector(15 downto 0) := x"8100";
+    constant EMCY_EEC_CAN_OVERRUN       : std_logic_vector(15 downto 0) := x"8110";
+    constant EMCY_EEC_CAN_ERROR_PASSIVE : std_logic_vector(15 downto 0) := x"8120";
+    constant EMCY_EEC_HEARTBEAT         : std_logic_vector(15 downto 0) := x"8130";
+    constant EMCY_EEC_BUS_OFF_RECOVERY  : std_logic_vector(15 downto 0) := x"8140";
+    constant EMCY_EEC_CAN_ID_COLLISION  : std_logic_vector(15 downto 0) := x"8150";
+    constant EMCY_EEC_PROTOCOL          : std_logic_vector(15 downto 0) := x"8200";
+    constant EMCY_EEC_PDO_NOT_PROCESSED : std_logic_vector(15 downto 0) := x"8210";
+    constant EMCY_EEC_PDO_LENGTH_EXCEEDED : std_logic_vector(15 downto 0) := x"8220";
+    constant EMCY_EEC_DAM_MPDO_NA       : std_logic_vector(15 downto 0) := x"8230";
+    constant EMCY_EEC_SYNC_LENGTH       : std_logic_vector(15 downto 0) := x"8240";
+    constant EMCY_EEC_RPDO_TIMEOUT      : std_logic_vector(15 downto 0) := x"8250";
+    constant EMCY_EEC_EXTERNAL          : std_logic_vector(15 downto 0) := x"9000";
+    constant EMCY_EEC_ADDITIONAL_FUNCTIONS : std_logic_vector(15 downto 0) := x"F000";
+    constant EMCY_EEC_DEVICE_SPECIFIC   : std_logic_vector(15 downto 0) := x"FF00";
+     
     --! CANopen Device Profiles
     constant DEVICE_PROFILE_GENERIC_IO      : std_logic_vector(15 downto 0) := x"0191";
 end package body CanOpen;
