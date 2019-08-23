@@ -1,5 +1,6 @@
 library ieee;
     use ieee.std_logic_1164.all;
+    use ieee.numeric_std.all;
     
 package CanOpen is
     ------------------------------------------------------------
@@ -26,6 +27,11 @@ package CanOpen is
         C       : std_logic;
         Data    : std_logic_vector(55 downto 0);
     end record SdoSegment;
+    
+    type TimeOfDay is record
+        Milliseconds    : unsigned(27 downto 0);
+        Days            : unsigned(15 downto 0);
+    end record TimeOfDay;
     
     type NodeIdArray is array (integer range <>) of std_logic_vector(6 downto 0);
     
@@ -65,6 +71,7 @@ package CanOpen is
     --! CANopen function codes per CiA 301
     constant FUNCTION_CODE_NMT                      : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_SYNC                     : std_logic_vector(3 downto 0);
+    constant FUNCTION_CODE_EMCY                     : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_TPDO1                    : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_RPDO1                    : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_TPDO2                    : std_logic_vector(3 downto 0);
@@ -216,6 +223,7 @@ package body CanOpen is
     --! CANopen function codes per CiA 301
     constant FUNCTION_CODE_NMT                      : std_logic_vector(3 downto 0) := b"0000";
     constant FUNCTION_CODE_SYNC                     : std_logic_vector(3 downto 0) := b"0001";
+    constant FUNCTION_CODE_EMCY                     : std_logic_vector(3 downto 0) := b"0001";
     constant FUNCTION_CODE_TPDO1                    : std_logic_vector(3 downto 0) := b"0011";
     constant FUNCTION_CODE_RPDO1                    : std_logic_vector(3 downto 0) := b"0100";
     constant FUNCTION_CODE_TPDO2                    : std_logic_vector(3 downto 0) := b"0101";
