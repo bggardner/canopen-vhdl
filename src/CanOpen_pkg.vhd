@@ -66,6 +66,12 @@ package CanOpen is
 --    NmtStateValue <= NMT_STATE_LOOKUP(NodeNmtState); --! Usage
 
     ------------------------------------------------------------
+    --! FUNCTIONS
+    ------------------------------------------------------------
+    function to_std_logic_vector(X: TimeOfDay)
+        return std_logic_vector;
+
+    ------------------------------------------------------------
     --! CONSTANTS
     ------------------------------------------------------------
     --! CANopen function codes per CiA 301
@@ -220,6 +226,18 @@ package CanOpen is
 end package CanOpen;
 
 package body CanOpen is
+    ------------------------------------------------------------
+    --! FUNCTIONS
+    ------------------------------------------------------------
+    function to_std_logic_vector(X: TimeOfDay)
+        return std_logic_vector is
+    begin
+        return std_logic_vector(X.Days) & x"0" & std_logic_vector(X.Milliseconds);
+    end to_std_logic_vector;
+        
+    ------------------------------------------------------------
+    --! CONSTANTS
+    ------------------------------------------------------------
     --! CANopen function codes per CiA 301
     constant FUNCTION_CODE_NMT                      : std_logic_vector(3 downto 0) := b"0000";
     constant FUNCTION_CODE_SYNC                     : std_logic_vector(3 downto 0) := b"0001";
