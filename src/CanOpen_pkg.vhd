@@ -78,6 +78,7 @@ package CanOpen is
     constant FUNCTION_CODE_NMT                      : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_SYNC                     : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_EMCY                     : std_logic_vector(3 downto 0);
+    constant FUNCTION_CODE_TIME                     : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_TPDO1                    : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_RPDO1                    : std_logic_vector(3 downto 0);
     constant FUNCTION_CODE_TPDO2                    : std_logic_vector(3 downto 0);
@@ -242,6 +243,7 @@ package body CanOpen is
     constant FUNCTION_CODE_NMT                      : std_logic_vector(3 downto 0) := b"0000";
     constant FUNCTION_CODE_SYNC                     : std_logic_vector(3 downto 0) := b"0001";
     constant FUNCTION_CODE_EMCY                     : std_logic_vector(3 downto 0) := b"0001";
+    constant FUNCTION_CODE_TIME                     : std_logic_vector(3 downto 0) := b"0010";
     constant FUNCTION_CODE_TPDO1                    : std_logic_vector(3 downto 0) := b"0011";
     constant FUNCTION_CODE_RPDO1                    : std_logic_vector(3 downto 0) := b"0100";
     constant FUNCTION_CODE_TPDO2                    : std_logic_vector(3 downto 0) := b"0101";
