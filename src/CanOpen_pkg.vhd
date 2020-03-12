@@ -28,6 +28,11 @@ package CanOpen is
         Data    : std_logic_vector(55 downto 0);
     end record SdoSegment;
     
+    type SdoBlock is record
+        Header  : std_logic_vector(7 downto 0);
+        Data    : std_logic_vector(55 downto 0);
+    end record SdoBlock;
+    
     type TimeOfDay is record
         Milliseconds    : unsigned(27 downto 0);
         Days            : unsigned(15 downto 0);
@@ -130,9 +135,18 @@ package CanOpen is
     constant SDO_SCS_BDR                : std_logic_vector(2 downto 0); --! Block download response
     constant SDO_SCS_BUR                : std_logic_vector(2 downto 0); --! Block upload response
     
+    --! CANopen SDO Block Client and Server Subcommands
+    constant SDO_BLOCK_SUBCOMMAND_INITIATE  : std_logic_vector(1 downto 0); --! Block subcommand initiate (upload/download request/response)
+    constant SDO_BLOCK_SUBCOMMAND_END       : std_logic_vector(1 downto 0); --! Block subcommand end (upload/download request/response)
+    constant SDO_BLOCK_SUBCOMMAND_RESPONSE  : std_logic_vector(1 downto 0); --! Block subcommand response (upload/download response)
+    constant SDO_BLOCK_SUBCOMMAND_START     : std_logic_vector(1 downto 0); --! Block subcommand start (upload request)
+    
     --! CANopen SDO abort codes per CiA 301
     constant SDO_ABORT_TOGGLE           : std_logic_vector(31 downto 0); --! Toggle bit not alternated
     constant SDO_ABORT_CS               : std_logic_vector(31 downto 0); --! Client/server command specifier not valid or unknown
+    constant SDO_ABORT_BLKSIZE          : std_logic_vector(31 downto 0); --! Invalid block size (block mode only)
+    constant SDO_ABORT_SEQNO            : std_logic_vector(31 downto 0); --! Invalid sequence number (block mode only)
+    constant SDO_ABORT_CRC              : std_logic_vector(31 downto 0); --! CRC error (block mode only)
     constant SDO_ABORT_WO               : std_logic_vector(31 downto 0); --! Attempt to read a write only object
     constant SDO_ABORT_RO               : std_logic_vector(31 downto 0); --! Attempt to write a read only object
     constant SDO_ABORT_DNE              : std_logic_vector(31 downto 0); --! Object does not exist in the object dictionary
@@ -294,10 +308,19 @@ package body CanOpen is
     constant SDO_SCS_IDR                : std_logic_vector(2 downto 0) := b"011"; --! Initiate download response
     constant SDO_SCS_BDR                : std_logic_vector(2 downto 0) := b"101"; --! Block download response
     constant SDO_SCS_BUR                : std_logic_vector(2 downto 0) := b"110"; --! Block upload response
-      
+
+    --! CANopen SDO Block Client and Server Subcommands
+    constant SDO_BLOCK_SUBCOMMAND_INITIATE  : std_logic_vector(1 downto 0) := b"00"; --! Block subcommand initiate (upload/download request/response)
+    constant SDO_BLOCK_SUBCOMMAND_END       : std_logic_vector(1 downto 0) := b"01"; --! Block subcommand end (upload/download request/response)
+    constant SDO_BLOCK_SUBCOMMAND_RESPONSE  : std_logic_vector(1 downto 0) := b"10"; --! Block subcommand response (upload/download response)
+    constant SDO_BLOCK_SUBCOMMAND_START     : std_logic_vector(1 downto 0) := b"11"; --! Block subcommand start (upload request)
+    
     --! CANopen SDO abort codes per CiA 301
     constant SDO_ABORT_TOGGLE           : std_logic_vector(31 downto 0) := x"05030000"; --! Toggle bit not alternated
     constant SDO_ABORT_CS               : std_logic_vector(31 downto 0) := x"05040001"; --! Client/server command specifier not valid or unknown
+    constant SDO_ABORT_BLKSIZE          : std_logic_vector(31 downto 0) := x"05040002"; --! Invalid block size (block mode only)
+    constant SDO_ABORT_SEQNO            : std_logic_vector(31 downto 0) := x"05040003"; --! Invalid sequence number (block mode only)
+    constant SDO_ABORT_CRC              : std_logic_vector(31 downto 0) := x"05040004"; --! CRC error (block mode only)
     constant SDO_ABORT_ACCESS           : std_logic_vector(31 downto 0) := x"06010000"; --! Unsupported access to an object
     constant SDO_ABORT_WO               : std_logic_vector(31 downto 0) := x"06010001"; --! Attempt to read a write only object
     constant SDO_ABORT_RO               : std_logic_vector(31 downto 0) := x"06010002"; --! Attempt to write a read only object
