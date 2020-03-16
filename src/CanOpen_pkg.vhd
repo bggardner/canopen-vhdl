@@ -176,6 +176,8 @@ package CanOpen is
     constant ODI_ID_REVISION            : std_logic_vector(23 downto 0);
     constant ODI_ID_SERIAL              : std_logic_vector(23 downto 0);
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0); --! If synchronous counter
+    constant ODI_STORE_EDS              : std_logic_vector(23 downto 0);
+    constant ODI_STORE_FORMAT           : std_logic_vector(23 downto 0);
     constant ODI_ERROR_BEHAVIOR         : std_logic_vector(23 downto 0);
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0); --! If SDO
     constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0); --! CAN ID used for SDO client-to-server
@@ -352,6 +354,8 @@ package body CanOpen is
     constant ODI_ID_REVISION            : std_logic_vector(23 downto 0) := x"101803";
     constant ODI_ID_SERIAL              : std_logic_vector(23 downto 0) := x"101804";
     constant ODI_SYNC_COUNTER_OVERFLOW  : std_logic_vector(23 downto 0) := x"101900"; --! If synchronous counter
+    constant ODI_STORE_EDS              : std_logic_vector(23 downto 0) := x"102100";
+    constant ODI_STORE_FORMAT           : std_logic_vector(23 downto 0) := x"102200";
     constant ODI_ERROR_BEHAVIOR         : std_logic_vector(23 downto 0) := x"102900";
     constant ODI_SDO_SERVER_COUNT       : std_logic_vector(23 downto 0) := x"120000"; --! If SDO
     constant ODI_SDO_SERVER_RX_ID       : std_logic_vector(23 downto 0) := x"120001"; --! CAN ID used for SDO client-to-server
