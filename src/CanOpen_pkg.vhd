@@ -156,6 +156,7 @@ package CanOpen is
     constant SDO_ABORT_PARAM_HIGH       : std_logic_vector(31 downto 0); --! Value of parameter written too high (download only)
     constant SDO_ABORT_PARAM_LOW        : std_logic_vector(31 downto 0); --! Value of parameter written too low (download only)
     constant SDO_ABORT_GENERAL          : std_logic_vector(31 downto 0); --! General error
+    constant SDO_ABORT_NO_DATA          : std_logic_vector(31 downto 0); --! No data available
     
     --! CANopen Object Dictionary (OD)
     --! Mandatory indices per CiA 301
@@ -334,6 +335,7 @@ package body CanOpen is
     constant SDO_ABORT_PARAM_HIGH       : std_logic_vector(31 downto 0) := x"06090031"; --! Value of parameter written too high (download only)
     constant SDO_ABORT_PARAM_LOW        : std_logic_vector(31 downto 0) := x"06090032"; --! Value of parameter written too low (download only)
     constant SDO_ABORT_GENERAL          : std_logic_vector(31 downto 0) := x"08000000"; --! General error
+    constant SDO_ABORT_NO_DATA          : std_logic_vector(31 downto 0) := x"08000024"; --! No data available
     
     --! CANopen Object Dictionary indices (ODIs) 
     --! Mandatory indices per CiA 301
