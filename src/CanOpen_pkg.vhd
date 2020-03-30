@@ -6,33 +6,6 @@ package CanOpen is
     ------------------------------------------------------------
     --! TYPES
     ------------------------------------------------------------
-    type CobId is record
-        FunctionCode    : std_logic_vector(3 downto 0);
-        NodeId          : std_logic_vector(6 downto 0);
-    end record CobId;
-    
-    type Sdo is record
-        Cs      : std_logic_vector(2 downto 0);
-        N       : std_logic_vector(1 downto 0);
-        E       : std_logic;
-        S       : std_logic;
-        Mux     : std_logic_vector(23 downto 0);
-        Data    : std_logic_vector(31 downto 0);
-    end record Sdo;
-    
-    type SdoSegment is record
-        Cs      : std_logic_vector(2 downto 0);
-        T       : std_logic;
-        N       : std_logic_vector(2 downto 0);
-        C       : std_logic;
-        Data    : std_logic_vector(55 downto 0);
-    end record SdoSegment;
-    
-    type SdoBlock is record
-        Header  : std_logic_vector(7 downto 0);
-        Data    : std_logic_vector(55 downto 0);
-    end record SdoBlock;
-    
     type TimeOfDay is record
         Milliseconds    : unsigned(27 downto 0);
         Days            : unsigned(15 downto 0);
@@ -150,6 +123,7 @@ package CanOpen is
     constant SDO_ABORT_WO               : std_logic_vector(31 downto 0); --! Attempt to read a write only object
     constant SDO_ABORT_RO               : std_logic_vector(31 downto 0); --! Attempt to write a read only object
     constant SDO_ABORT_DNE              : std_logic_vector(31 downto 0); --! Object does not exist in the object dictionary
+    constant SDO_ABORT_PARAM_LENGTH     : std_logic_vector(31 downto 0); --! Data type does not match, length of service parameter does not match
     constant SDO_ABORT_PARAM_LONG       : std_logic_vector(31 downto 0); --! Data type does not match, length of service parameter too high
     constant SDO_ABORT_PARAM_SHORT      : std_logic_vector(31 downto 0); --! Data type does not match, length of service parameter too low
     constant SDO_ABORT_PARAM_INVALID    : std_logic_vector(31 downto 0); --! Invalid value for parameter (download only)
@@ -328,7 +302,7 @@ package body CanOpen is
     constant SDO_ABORT_WO               : std_logic_vector(31 downto 0) := x"06010001"; --! Attempt to read a write only object
     constant SDO_ABORT_RO               : std_logic_vector(31 downto 0) := x"06010002"; --! Attempt to write a read only object
     constant SDO_ABORT_DNE              : std_logic_vector(31 downto 0) := x"06020000"; --! Object does not exist in the object dictionary
-    constant SDO_ABORT_PARAM            : std_logic_vector(31 downto 0) := x"06070010"; --! Data type does not match, length of service parameter does not match
+    constant SDO_ABORT_PARAM_LENGTH     : std_logic_vector(31 downto 0) := x"06070010"; --! Data type does not match, length of service parameter does not match
     constant SDO_ABORT_PARAM_LONG       : std_logic_vector(31 downto 0) := x"06070012"; --! Data type does not match, length of service parameter too high
     constant SDO_ABORT_PARAM_SHORT      : std_logic_vector(31 downto 0) := x"06070013"; --! Data type does not match, length of service parameter too low
     constant SDO_ABORT_PARAM_INVALID    : std_logic_vector(31 downto 0) := x"06090030"; --! Invalid value for parameter (download only)
