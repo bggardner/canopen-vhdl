@@ -120,6 +120,7 @@ package CanOpen is
     constant SDO_ABORT_BLKSIZE          : std_logic_vector(31 downto 0); --! Invalid block size (block mode only)
     constant SDO_ABORT_SEQNO            : std_logic_vector(31 downto 0); --! Invalid sequence number (block mode only)
     constant SDO_ABORT_CRC              : std_logic_vector(31 downto 0); --! CRC error (block mode only)
+    constant SDO_ABORT_ACCESS           : std_logic_vector(31 downto 0); --! Unsupported access to an object
     constant SDO_ABORT_WO               : std_logic_vector(31 downto 0); --! Attempt to read a write only object
     constant SDO_ABORT_RO               : std_logic_vector(31 downto 0); --! Attempt to write a read only object
     constant SDO_ABORT_DNE              : std_logic_vector(31 downto 0); --! Object does not exist in the object dictionary
