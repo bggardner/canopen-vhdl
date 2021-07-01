@@ -48,6 +48,14 @@ package CanOpen is
     ------------------------------------------------------------
     function to_std_logic_vector(X: TimeOfDay)
         return std_logic_vector;
+        
+    --! CRC-16-CCITT/XMODEM algorithm for SDO block upload
+    function Crc16 (
+        Data: std_logic_vector(55 downto 0);
+        Crc:  std_logic_vector(15 downto 0);
+        Bytes: integer range 0 to 7
+    )
+    return std_logic_vector;
 
     ------------------------------------------------------------
     --! CONSTANTS
@@ -227,6 +235,151 @@ package body CanOpen is
     begin
         return std_logic_vector(X.Days) & x"0" & std_logic_vector(X.Milliseconds);
     end to_std_logic_vector;
+    
+    --! CRC-16-CCITT/XMODEM algorithm for SDO block upload
+    function Crc16 (
+        Data: std_logic_vector(55 downto 0);
+        Crc:  std_logic_vector(15 downto 0);
+        Bytes: integer range 0 to 7
+    )
+    return std_logic_vector is
+        variable d:      std_logic_vector(55 downto 0);
+        variable c:      std_logic_vector(15 downto 0);
+        variable NextCrc: std_logic_vector(15 downto 0);
+    begin
+        c := Crc;
+        case Bytes is
+            when 1 =>
+                d := Data;
+                NextCrc(0) := d(4) xor d(0) xor c(8) xor c(12);
+                NextCrc(1) := d(5) xor d(1) xor c(9) xor c(13);
+                NextCrc(2) := d(6) xor d(2) xor c(10) xor c(14);
+                NextCrc(3) := d(7) xor d(3) xor c(11) xor c(15);
+                NextCrc(4) := d(4) xor c(12);
+                NextCrc(5) := d(5) xor d(4) xor d(0) xor c(8) xor c(12) xor c(13);
+                NextCrc(6) := d(6) xor d(5) xor d(1) xor c(9) xor c(13) xor c(14);
+                NextCrc(7) := d(7) xor d(6) xor d(2) xor c(10) xor c(14) xor c(15);
+                NextCrc(8) := d(7) xor d(3) xor c(0) xor c(11) xor c(15);
+                NextCrc(9) := d(4) xor c(1) xor c(12);
+                NextCrc(10) := d(5) xor c(2) xor c(13);
+                NextCrc(11) := d(6) xor c(3) xor c(14);
+                NextCrc(12) := d(7) xor d(4) xor d(0) xor c(4) xor c(8) xor c(12) xor c(15);
+                NextCrc(13) := d(5) xor d(1) xor c(5) xor c(9) xor c(13);
+                NextCrc(14) := d(6) xor d(2) xor c(6) xor c(10) xor c(14);
+                NextCrc(15) := d(7) xor d(3) xor c(7) xor c(11) xor c(15);
+            when 2 =>
+                d := x"0000000000" & Data(7 downto 0) & Data(15 downto 8);
+                NextCrc(0) := d(12) xor d(11) xor d(8) xor d(4) xor d(0) xor c(0) xor c(4) xor c(8) xor c(11) xor c(12);
+                NextCrc(1) := d(13) xor d(12) xor d(9) xor d(5) xor d(1) xor c(1) xor c(5) xor c(9) xor c(12) xor c(13);
+                NextCrc(2) := d(14) xor d(13) xor d(10) xor d(6) xor d(2) xor c(2) xor c(6) xor c(10) xor c(13) xor c(14);
+                NextCrc(3) := d(15) xor d(14) xor d(11) xor d(7) xor d(3) xor c(3) xor c(7) xor c(11) xor c(14) xor c(15);
+                NextCrc(4) := d(15) xor d(12) xor d(8) xor d(4) xor c(4) xor c(8) xor c(12) xor c(15);
+                NextCrc(5) := d(13) xor d(12) xor d(11) xor d(9) xor d(8) xor d(5) xor d(4) xor d(0) xor c(0) xor c(4) xor c(5) xor c(8) xor c(9) xor c(11) xor c(12) xor c(13);
+                NextCrc(6) := d(14) xor d(13) xor d(12) xor d(10) xor d(9) xor d(6) xor d(5) xor d(1) xor c(1) xor c(5) xor c(6) xor c(9) xor c(10) xor c(12) xor c(13) xor c(14);
+                NextCrc(7) := d(15) xor d(14) xor d(13) xor d(11) xor d(10) xor d(7) xor d(6) xor d(2) xor c(2) xor c(6) xor c(7) xor c(10) xor c(11) xor c(13) xor c(14) xor c(15);
+                NextCrc(8) := d(15) xor d(14) xor d(12) xor d(11) xor d(8) xor d(7) xor d(3) xor c(3) xor c(7) xor c(8) xor c(11) xor c(12) xor c(14) xor c(15);
+                NextCrc(9) := d(15) xor d(13) xor d(12) xor d(9) xor d(8) xor d(4) xor c(4) xor c(8) xor c(9) xor c(12) xor c(13) xor c(15);
+                NextCrc(10) := d(14) xor d(13) xor d(10) xor d(9) xor d(5) xor c(5) xor c(9) xor c(10) xor c(13) xor c(14);
+                NextCrc(11) := d(15) xor d(14) xor d(11) xor d(10) xor d(6) xor c(6) xor c(10) xor c(11) xor c(14) xor c(15);
+                NextCrc(12) := d(15) xor d(8) xor d(7) xor d(4) xor d(0) xor c(0) xor c(4) xor c(7) xor c(8) xor c(15);
+                NextCrc(13) := d(9) xor d(8) xor d(5) xor d(1) xor c(1) xor c(5) xor c(8) xor c(9);
+                NextCrc(14) := d(10) xor d(9) xor d(6) xor d(2) xor c(2) xor c(6) xor c(9) xor c(10);
+                NextCrc(15) := d(11) xor d(10) xor d(7) xor d(3) xor c(3) xor c(7) xor c(10) xor c(11);
+            when 3 =>
+                d := x"00000000" & Data(7 downto 0) & Data(15 downto 8) & Data(23 downto 16);
+                NextCrc(0) := d(22) xor d(20) xor d(19) xor d(12) xor d(11) xor d(8) xor d(4) xor d(0) xor c(0) xor c(3) xor c(4) xor c(11) xor c(12) xor c(14);
+                NextCrc(1) := d(23) xor d(21) xor d(20) xor d(13) xor d(12) xor d(9) xor d(5) xor d(1) xor c(1) xor c(4) xor c(5) xor c(12) xor c(13) xor c(15);
+                NextCrc(2) := d(22) xor d(21) xor d(14) xor d(13) xor d(10) xor d(6) xor d(2) xor c(2) xor c(5) xor c(6) xor c(13) xor c(14);
+                NextCrc(3) := d(23) xor d(22) xor d(15) xor d(14) xor d(11) xor d(7) xor d(3) xor c(3) xor c(6) xor c(7) xor c(14) xor c(15);
+                NextCrc(4) := d(23) xor d(16) xor d(15) xor d(12) xor d(8) xor d(4) xor c(0) xor c(4) xor c(7) xor c(8) xor c(15);
+                NextCrc(5) := d(22) xor d(20) xor d(19) xor d(17) xor d(16) xor d(13) xor d(12) xor d(11) xor d(9) xor d(8) xor d(5) xor d(4) xor d(0) xor c(0) xor c(1) xor c(3) xor c(4) xor c(5) xor c(8) xor c(9) xor c(11) xor c(12) xor c(14);
+                NextCrc(6) := d(23) xor d(21) xor d(20) xor d(18) xor d(17) xor d(14) xor d(13) xor d(12) xor d(10) xor d(9) xor d(6) xor d(5) xor d(1) xor c(1) xor c(2) xor c(4) xor c(5) xor c(6) xor c(9) xor c(10) xor c(12) xor c(13) xor c(15);
+                NextCrc(7) := d(22) xor d(21) xor d(19) xor d(18) xor d(15) xor d(14) xor d(13) xor d(11) xor d(10) xor d(7) xor d(6) xor d(2) xor c(2) xor c(3) xor c(5) xor c(6) xor c(7) xor c(10) xor c(11) xor c(13) xor c(14);
+                NextCrc(8) := d(23) xor d(22) xor d(20) xor d(19) xor d(16) xor d(15) xor d(14) xor d(12) xor d(11) xor d(8) xor d(7) xor d(3) xor c(0) xor c(3) xor c(4) xor c(6) xor c(7) xor c(8) xor c(11) xor c(12) xor c(14) xor c(15);
+                NextCrc(9) := d(23) xor d(21) xor d(20) xor d(17) xor d(16) xor d(15) xor d(13) xor d(12) xor d(9) xor d(8) xor d(4) xor c(0) xor c(1) xor c(4) xor c(5) xor c(7) xor c(8) xor c(9) xor c(12) xor c(13) xor c(15);
+                NextCrc(10) := d(22) xor d(21) xor d(18) xor d(17) xor d(16) xor d(14) xor d(13) xor d(10) xor d(9) xor d(5) xor c(1) xor c(2) xor c(5) xor c(6) xor c(8) xor c(9) xor c(10) xor c(13) xor c(14);
+                NextCrc(11) := d(23) xor d(22) xor d(19) xor d(18) xor d(17) xor d(15) xor d(14) xor d(11) xor d(10) xor d(6) xor c(2) xor c(3) xor c(6) xor c(7) xor c(9) xor c(10) xor c(11) xor c(14) xor c(15);
+                NextCrc(12) := d(23) xor d(22) xor d(18) xor d(16) xor d(15) xor d(8) xor d(7) xor d(4) xor d(0) xor c(0) xor c(7) xor c(8) xor c(10) xor c(14) xor c(15);
+                NextCrc(13) := d(23) xor d(19) xor d(17) xor d(16) xor d(9) xor d(8) xor d(5) xor d(1) xor c(0) xor c(1) xor c(8) xor c(9) xor c(11) xor c(15);
+                NextCrc(14) := d(20) xor d(18) xor d(17) xor d(10) xor d(9) xor d(6) xor d(2) xor c(1) xor c(2) xor c(9) xor c(10) xor c(12);
+                NextCrc(15) := d(21) xor d(19) xor d(18) xor d(11) xor d(10) xor d(7) xor d(3) xor c(2) xor c(3) xor c(10) xor c(11) xor c(13);
+            when 4 =>
+                d := x"000000" & Data(7 downto 0) & Data(15 downto 8) & Data(23 downto 16) & Data(31 downto 24);
+                NextCrc(0) := d(28) xor d(27) xor d(26) xor d(22) xor d(20) xor d(19) xor d(12) xor d(11) xor d(8) xor d(4) xor d(0) xor c(3) xor c(4) xor c(6) xor c(10) xor c(11) xor c(12);
+                NextCrc(1) := d(29) xor d(28) xor d(27) xor d(23) xor d(21) xor d(20) xor d(13) xor d(12) xor d(9) xor d(5) xor d(1) xor c(4) xor c(5) xor c(7) xor c(11) xor c(12) xor c(13);
+                NextCrc(2) := d(30) xor d(29) xor d(28) xor d(24) xor d(22) xor d(21) xor d(14) xor d(13) xor d(10) xor d(6) xor d(2) xor c(5) xor c(6) xor c(8) xor c(12) xor c(13) xor c(14);
+                NextCrc(3) := d(31) xor d(30) xor d(29) xor d(25) xor d(23) xor d(22) xor d(15) xor d(14) xor d(11) xor d(7) xor d(3) xor c(6) xor c(7) xor c(9) xor c(13) xor c(14) xor c(15);
+                NextCrc(4) := d(31) xor d(30) xor d(26) xor d(24) xor d(23) xor d(16) xor d(15) xor d(12) xor d(8) xor d(4) xor c(0) xor c(7) xor c(8) xor c(10) xor c(14) xor c(15);
+                NextCrc(5) := d(31) xor d(28) xor d(26) xor d(25) xor d(24) xor d(22) xor d(20) xor d(19) xor d(17) xor d(16) xor d(13) xor d(12) xor d(11) xor d(9) xor d(8) xor d(5) xor d(4) xor d(0) xor c(0) xor c(1) xor c(3) xor c(4) xor c(6) xor c(8) xor c(9) xor c(10) xor c(12) xor c(15);
+                NextCrc(6) := d(29) xor d(27) xor d(26) xor d(25) xor d(23) xor d(21) xor d(20) xor d(18) xor d(17) xor d(14) xor d(13) xor d(12) xor d(10) xor d(9) xor d(6) xor d(5) xor d(1) xor c(1) xor c(2) xor c(4) xor c(5) xor c(7) xor c(9) xor c(10) xor c(11) xor c(13);
+                NextCrc(7) := d(30) xor d(28) xor d(27) xor d(26) xor d(24) xor d(22) xor d(21) xor d(19) xor d(18) xor d(15) xor d(14) xor d(13) xor d(11) xor d(10) xor d(7) xor d(6) xor d(2) xor c(2) xor c(3) xor c(5) xor c(6) xor c(8) xor c(10) xor c(11) xor c(12) xor c(14);
+                NextCrc(8) := d(31) xor d(29) xor d(28) xor d(27) xor d(25) xor d(23) xor d(22) xor d(20) xor d(19) xor d(16) xor d(15) xor d(14) xor d(12) xor d(11) xor d(8) xor d(7) xor d(3) xor c(0) xor c(3) xor c(4) xor c(6) xor c(7) xor c(9) xor c(11) xor c(12) xor c(13) xor c(15);
+                NextCrc(9) := d(30) xor d(29) xor d(28) xor d(26) xor d(24) xor d(23) xor d(21) xor d(20) xor d(17) xor d(16) xor d(15) xor d(13) xor d(12) xor d(9) xor d(8) xor d(4) xor c(0) xor c(1) xor c(4) xor c(5) xor c(7) xor c(8) xor c(10) xor c(12) xor c(13) xor c(14);
+                NextCrc(10) := d(31) xor d(30) xor d(29) xor d(27) xor d(25) xor d(24) xor d(22) xor d(21) xor d(18) xor d(17) xor d(16) xor d(14) xor d(13) xor d(10) xor d(9) xor d(5) xor c(0) xor c(1) xor c(2) xor c(5) xor c(6) xor c(8) xor c(9) xor c(11) xor c(13) xor c(14) xor c(15);
+                NextCrc(11) := d(31) xor d(30) xor d(28) xor d(26) xor d(25) xor d(23) xor d(22) xor d(19) xor d(18) xor d(17) xor d(15) xor d(14) xor d(11) xor d(10) xor d(6) xor c(1) xor c(2) xor c(3) xor c(6) xor c(7) xor c(9) xor c(10) xor c(12) xor c(14) xor c(15);
+                NextCrc(12) := d(31) xor d(29) xor d(28) xor d(24) xor d(23) xor d(22) xor d(18) xor d(16) xor d(15) xor d(8) xor d(7) xor d(4) xor d(0) xor c(0) xor c(2) xor c(6) xor c(7) xor c(8) xor c(12) xor c(13) xor c(15);
+                NextCrc(13) := d(30) xor d(29) xor d(25) xor d(24) xor d(23) xor d(19) xor d(17) xor d(16) xor d(9) xor d(8) xor d(5) xor d(1) xor c(0) xor c(1) xor c(3) xor c(7) xor c(8) xor c(9) xor c(13) xor c(14);
+                NextCrc(14) := d(31) xor d(30) xor d(26) xor d(25) xor d(24) xor d(20) xor d(18) xor d(17) xor d(10) xor d(9) xor d(6) xor d(2) xor c(1) xor c(2) xor c(4) xor c(8) xor c(9) xor c(10) xor c(14) xor c(15);
+                NextCrc(15) := d(31) xor d(27) xor d(26) xor d(25) xor d(21) xor d(19) xor d(18) xor d(11) xor d(10) xor d(7) xor d(3) xor c(2) xor c(3) xor c(5) xor c(9) xor c(10) xor c(11) xor c(15);
+            when 5 =>
+                d := x"0000" & Data(7 downto 0) & Data(15 downto 8) & Data(23 downto 16) & Data(31 downto 24) & Data(39 downto 32);
+                NextCrc(0) := d(35) xor d(33) xor d(32) xor d(28) xor d(27) xor d(26) xor d(22) xor d(20) xor d(19) xor d(12) xor d(11) xor d(8) xor d(4) xor d(0) xor c(2) xor c(3) xor c(4) xor c(8) xor c(9) xor c(11);
+                NextCrc(1) := d(36) xor d(34) xor d(33) xor d(29) xor d(28) xor d(27) xor d(23) xor d(21) xor d(20) xor d(13) xor d(12) xor d(9) xor d(5) xor d(1) xor c(3) xor c(4) xor c(5) xor c(9) xor c(10) xor c(12);
+                NextCrc(2) := d(37) xor d(35) xor d(34) xor d(30) xor d(29) xor d(28) xor d(24) xor d(22) xor d(21) xor d(14) xor d(13) xor d(10) xor d(6) xor d(2) xor c(0) xor c(4) xor c(5) xor c(6) xor c(10) xor c(11) xor c(13);
+                NextCrc(3) := d(38) xor d(36) xor d(35) xor d(31) xor d(30) xor d(29) xor d(25) xor d(23) xor d(22) xor d(15) xor d(14) xor d(11) xor d(7) xor d(3) xor c(1) xor c(5) xor c(6) xor c(7) xor c(11) xor c(12) xor c(14);
+                NextCrc(4) := d(39) xor d(37) xor d(36) xor d(32) xor d(31) xor d(30) xor d(26) xor d(24) xor d(23) xor d(16) xor d(15) xor d(12) xor d(8) xor d(4) xor c(0) xor c(2) xor c(6) xor c(7) xor c(8) xor c(12) xor c(13) xor c(15);
+                NextCrc(5) := d(38) xor d(37) xor d(35) xor d(31) xor d(28) xor d(26) xor d(25) xor d(24) xor d(22) xor d(20) xor d(19) xor d(17) xor d(16) xor d(13) xor d(12) xor d(11) xor d(9) xor d(8) xor d(5) xor d(4) xor d(0) xor c(0) xor c(1) xor c(2) xor c(4) xor c(7) xor c(11) xor c(13) xor c(14);
+                NextCrc(6) := d(39) xor d(38) xor d(36) xor d(32) xor d(29) xor d(27) xor d(26) xor d(25) xor d(23) xor d(21) xor d(20) xor d(18) xor d(17) xor d(14) xor d(13) xor d(12) xor d(10) xor d(9) xor d(6) xor d(5) xor d(1) xor c(1) xor c(2) xor c(3) xor c(5) xor c(8) xor c(12) xor c(14) xor c(15);
+                NextCrc(7) := d(39) xor d(37) xor d(33) xor d(30) xor d(28) xor d(27) xor d(26) xor d(24) xor d(22) xor d(21) xor d(19) xor d(18) xor d(15) xor d(14) xor d(13) xor d(11) xor d(10) xor d(7) xor d(6) xor d(2) xor c(0) xor c(2) xor c(3) xor c(4) xor c(6) xor c(9) xor c(13) xor c(15);
+                NextCrc(8) := d(38) xor d(34) xor d(31) xor d(29) xor d(28) xor d(27) xor d(25) xor d(23) xor d(22) xor d(20) xor d(19) xor d(16) xor d(15) xor d(14) xor d(12) xor d(11) xor d(8) xor d(7) xor d(3) xor c(1) xor c(3) xor c(4) xor c(5) xor c(7) xor c(10) xor c(14);
+                NextCrc(9) := d(39) xor d(35) xor d(32) xor d(30) xor d(29) xor d(28) xor d(26) xor d(24) xor d(23) xor d(21) xor d(20) xor d(17) xor d(16) xor d(15) xor d(13) xor d(12) xor d(9) xor d(8) xor d(4) xor c(0) xor c(2) xor c(4) xor c(5) xor c(6) xor c(8) xor c(11) xor c(15);
+                NextCrc(10) := d(36) xor d(33) xor d(31) xor d(30) xor d(29) xor d(27) xor d(25) xor d(24) xor d(22) xor d(21) xor d(18) xor d(17) xor d(16) xor d(14) xor d(13) xor d(10) xor d(9) xor d(5) xor c(0) xor c(1) xor c(3) xor c(5) xor c(6) xor c(7) xor c(9) xor c(12);
+                NextCrc(11) := d(37) xor d(34) xor d(32) xor d(31) xor d(30) xor d(28) xor d(26) xor d(25) xor d(23) xor d(22) xor d(19) xor d(18) xor d(17) xor d(15) xor d(14) xor d(11) xor d(10) xor d(6) xor c(1) xor c(2) xor c(4) xor c(6) xor c(7) xor c(8) xor c(10) xor c(13);
+                NextCrc(12) := d(38) xor d(31) xor d(29) xor d(28) xor d(24) xor d(23) xor d(22) xor d(18) xor d(16) xor d(15) xor d(8) xor d(7) xor d(4) xor d(0) xor c(0) xor c(4) xor c(5) xor c(7) xor c(14);
+                NextCrc(13) := d(39) xor d(32) xor d(30) xor d(29) xor d(25) xor d(24) xor d(23) xor d(19) xor d(17) xor d(16) xor d(9) xor d(8) xor d(5) xor d(1) xor c(0) xor c(1) xor c(5) xor c(6) xor c(8) xor c(15);
+                NextCrc(14) := d(33) xor d(31) xor d(30) xor d(26) xor d(25) xor d(24) xor d(20) xor d(18) xor d(17) xor d(10) xor d(9) xor d(6) xor d(2) xor c(0) xor c(1) xor c(2) xor c(6) xor c(7) xor c(9);
+                NextCrc(15) := d(34) xor d(32) xor d(31) xor d(27) xor d(26) xor d(25) xor d(21) xor d(19) xor d(18) xor d(11) xor d(10) xor d(7) xor d(3) xor c(1) xor c(2) xor c(3) xor c(7) xor c(8) xor c(10);
+            when 6 =>
+                d := x"00" & Data(7 downto 0) & Data(15 downto 8) & Data(23 downto 16) & Data(31 downto 24) & Data(39 downto 32) & Data(47 downto 40);
+                NextCrc(0) := d(42) xor d(35) xor d(33) xor d(32) xor d(28) xor d(27) xor d(26) xor d(22) xor d(20) xor d(19) xor d(12) xor d(11) xor d(8) xor d(4) xor d(0) xor c(0) xor c(1) xor c(3) xor c(10);
+                NextCrc(1) := d(43) xor d(36) xor d(34) xor d(33) xor d(29) xor d(28) xor d(27) xor d(23) xor d(21) xor d(20) xor d(13) xor d(12) xor d(9) xor d(5) xor d(1) xor c(1) xor c(2) xor c(4) xor c(11);
+                NextCrc(2) := d(44) xor d(37) xor d(35) xor d(34) xor d(30) xor d(29) xor d(28) xor d(24) xor d(22) xor d(21) xor d(14) xor d(13) xor d(10) xor d(6) xor d(2) xor c(2) xor c(3) xor c(5) xor c(12);
+                NextCrc(3) := d(45) xor d(38) xor d(36) xor d(35) xor d(31) xor d(30) xor d(29) xor d(25) xor d(23) xor d(22) xor d(15) xor d(14) xor d(11) xor d(7) xor d(3) xor c(3) xor c(4) xor c(6) xor c(13);
+                NextCrc(4) := d(46) xor d(39) xor d(37) xor d(36) xor d(32) xor d(31) xor d(30) xor d(26) xor d(24) xor d(23) xor d(16) xor d(15) xor d(12) xor d(8) xor d(4) xor c(0) xor c(4) xor c(5) xor c(7) xor c(14);
+                NextCrc(5) := d(47) xor d(42) xor d(40) xor d(38) xor d(37) xor d(35) xor d(31) xor d(28) xor d(26) xor d(25) xor d(24) xor d(22) xor d(20) xor d(19) xor d(17) xor d(16) xor d(13) xor d(12) xor d(11) xor d(9) xor d(8) xor d(5) xor d(4) xor d(0) xor c(3) xor c(5) xor c(6) xor c(8) xor c(10) xor c(15);
+                NextCrc(6) := d(43) xor d(41) xor d(39) xor d(38) xor d(36) xor d(32) xor d(29) xor d(27) xor d(26) xor d(25) xor d(23) xor d(21) xor d(20) xor d(18) xor d(17) xor d(14) xor d(13) xor d(12) xor d(10) xor d(9) xor d(6) xor d(5) xor d(1) xor c(0) xor c(4) xor c(6) xor c(7) xor c(9) xor c(11);
+                NextCrc(7) := d(44) xor d(42) xor d(40) xor d(39) xor d(37) xor d(33) xor d(30) xor d(28) xor d(27) xor d(26) xor d(24) xor d(22) xor d(21) xor d(19) xor d(18) xor d(15) xor d(14) xor d(13) xor d(11) xor d(10) xor d(7) xor d(6) xor d(2) xor c(1) xor c(5) xor c(7) xor c(8) xor c(10) xor c(12);
+                NextCrc(8) := d(45) xor d(43) xor d(41) xor d(40) xor d(38) xor d(34) xor d(31) xor d(29) xor d(28) xor d(27) xor d(25) xor d(23) xor d(22) xor d(20) xor d(19) xor d(16) xor d(15) xor d(14) xor d(12) xor d(11) xor d(8) xor d(7) xor d(3) xor c(2) xor c(6) xor c(8) xor c(9) xor c(11) xor c(13);
+                NextCrc(9) := d(46) xor d(44) xor d(42) xor d(41) xor d(39) xor d(35) xor d(32) xor d(30) xor d(29) xor d(28) xor d(26) xor d(24) xor d(23) xor d(21) xor d(20) xor d(17) xor d(16) xor d(15) xor d(13) xor d(12) xor d(9) xor d(8) xor d(4) xor c(0) xor c(3) xor c(7) xor c(9) xor c(10) xor c(12) xor c(14);
+                NextCrc(10) := d(47) xor d(45) xor d(43) xor d(42) xor d(40) xor d(36) xor d(33) xor d(31) xor d(30) xor d(29) xor d(27) xor d(25) xor d(24) xor d(22) xor d(21) xor d(18) xor d(17) xor d(16) xor d(14) xor d(13) xor d(10) xor d(9) xor d(5) xor c(1) xor c(4) xor c(8) xor c(10) xor c(11) xor c(13) xor c(15);
+                NextCrc(11) := d(46) xor d(44) xor d(43) xor d(41) xor d(37) xor d(34) xor d(32) xor d(31) xor d(30) xor d(28) xor d(26) xor d(25) xor d(23) xor d(22) xor d(19) xor d(18) xor d(17) xor d(15) xor d(14) xor d(11) xor d(10) xor d(6) xor c(0) xor c(2) xor c(5) xor c(9) xor c(11) xor c(12) xor c(14);
+                NextCrc(12) := d(47) xor d(45) xor d(44) xor d(38) xor d(31) xor d(29) xor d(28) xor d(24) xor d(23) xor d(22) xor d(18) xor d(16) xor d(15) xor d(8) xor d(7) xor d(4) xor d(0) xor c(6) xor c(12) xor c(13) xor c(15);
+                NextCrc(13) := d(46) xor d(45) xor d(39) xor d(32) xor d(30) xor d(29) xor d(25) xor d(24) xor d(23) xor d(19) xor d(17) xor d(16) xor d(9) xor d(8) xor d(5) xor d(1) xor c(0) xor c(7) xor c(13) xor c(14);
+                NextCrc(14) := d(47) xor d(46) xor d(40) xor d(33) xor d(31) xor d(30) xor d(26) xor d(25) xor d(24) xor d(20) xor d(18) xor d(17) xor d(10) xor d(9) xor d(6) xor d(2) xor c(1) xor c(8) xor c(14) xor c(15);
+                NextCrc(15) := d(47) xor d(41) xor d(34) xor d(32) xor d(31) xor d(27) xor d(26) xor d(25) xor d(21) xor d(19) xor d(18) xor d(11) xor d(10) xor d(7) xor d(3) xor c(0) xor c(2) xor c(9) xor c(15);
+            when 7 =>
+                d := Data(7 downto 0) & Data(15 downto 8) & Data(23 downto 16) & Data(31 downto 24) & Data(39 downto 32) & Data(47 downto 40) & Data(55 downto 48);
+                NextCrc(0) := d(55) xor d(52) xor d(51) xor d(49) xor d(48) xor d(42) xor d(35) xor d(33) xor d(32) xor d(28) xor d(27) xor d(26) xor d(22) xor d(20) xor d(19) xor d(12) xor d(11) xor d(8) xor d(4) xor d(0) xor c(2) xor c(8) xor c(9) xor c(11) xor c(12) xor c(15);
+                NextCrc(1) := d(53) xor d(52) xor d(50) xor d(49) xor d(43) xor d(36) xor d(34) xor d(33) xor d(29) xor d(28) xor d(27) xor d(23) xor d(21) xor d(20) xor d(13) xor d(12) xor d(9) xor d(5) xor d(1) xor c(3) xor c(9) xor c(10) xor c(12) xor c(13);
+                NextCrc(2) := d(54) xor d(53) xor d(51) xor d(50) xor d(44) xor d(37) xor d(35) xor d(34) xor d(30) xor d(29) xor d(28) xor d(24) xor d(22) xor d(21) xor d(14) xor d(13) xor d(10) xor d(6) xor d(2) xor c(4) xor c(10) xor c(11) xor c(13) xor c(14);
+                NextCrc(3) := d(55) xor d(54) xor d(52) xor d(51) xor d(45) xor d(38) xor d(36) xor d(35) xor d(31) xor d(30) xor d(29) xor d(25) xor d(23) xor d(22) xor d(15) xor d(14) xor d(11) xor d(7) xor d(3) xor c(5) xor c(11) xor c(12) xor c(14) xor c(15);
+                NextCrc(4) := d(55) xor d(53) xor d(52) xor d(46) xor d(39) xor d(37) xor d(36) xor d(32) xor d(31) xor d(30) xor d(26) xor d(24) xor d(23) xor d(16) xor d(15) xor d(12) xor d(8) xor d(4) xor c(6) xor c(12) xor c(13) xor c(15);
+                NextCrc(5) := d(55) xor d(54) xor d(53) xor d(52) xor d(51) xor d(49) xor d(48) xor d(47) xor d(42) xor d(40) xor d(38) xor d(37) xor d(35) xor d(31) xor d(28) xor d(26) xor d(25) xor d(24) xor d(22) xor d(20) xor d(19) xor d(17) xor d(16) xor d(13) xor d(12) xor d(11) xor d(9) xor d(8) xor d(5) xor d(4) xor d(0) xor c(0) xor c(2) xor c(7) xor c(8) xor c(9) xor c(11) xor c(12) xor c(13) xor c(14) xor c(15);
+                NextCrc(6) := d(55) xor d(54) xor d(53) xor d(52) xor d(50) xor d(49) xor d(48) xor d(43) xor d(41) xor d(39) xor d(38) xor d(36) xor d(32) xor d(29) xor d(27) xor d(26) xor d(25) xor d(23) xor d(21) xor d(20) xor d(18) xor d(17) xor d(14) xor d(13) xor d(12) xor d(10) xor d(9) xor d(6) xor d(5) xor d(1) xor c(1) xor c(3) xor c(8) xor c(9) xor c(10) xor c(12) xor c(13) xor c(14) xor c(15);
+                NextCrc(7) := d(55) xor d(54) xor d(53) xor d(51) xor d(50) xor d(49) xor d(44) xor d(42) xor d(40) xor d(39) xor d(37) xor d(33) xor d(30) xor d(28) xor d(27) xor d(26) xor d(24) xor d(22) xor d(21) xor d(19) xor d(18) xor d(15) xor d(14) xor d(13) xor d(11) xor d(10) xor d(7) xor d(6) xor d(2) xor c(0) xor c(2) xor c(4) xor c(9) xor c(10) xor c(11) xor c(13) xor c(14) xor c(15);
+                NextCrc(8) := d(55) xor d(54) xor d(52) xor d(51) xor d(50) xor d(45) xor d(43) xor d(41) xor d(40) xor d(38) xor d(34) xor d(31) xor d(29) xor d(28) xor d(27) xor d(25) xor d(23) xor d(22) xor d(20) xor d(19) xor d(16) xor d(15) xor d(14) xor d(12) xor d(11) xor d(8) xor d(7) xor d(3) xor c(0) xor c(1) xor c(3) xor c(5) xor c(10) xor c(11) xor c(12) xor c(14) xor c(15);
+                NextCrc(9) := d(55) xor d(53) xor d(52) xor d(51) xor d(46) xor d(44) xor d(42) xor d(41) xor d(39) xor d(35) xor d(32) xor d(30) xor d(29) xor d(28) xor d(26) xor d(24) xor d(23) xor d(21) xor d(20) xor d(17) xor d(16) xor d(15) xor d(13) xor d(12) xor d(9) xor d(8) xor d(4) xor c(1) xor c(2) xor c(4) xor c(6) xor c(11) xor c(12) xor c(13) xor c(15);
+                NextCrc(10) := d(54) xor d(53) xor d(52) xor d(47) xor d(45) xor d(43) xor d(42) xor d(40) xor d(36) xor d(33) xor d(31) xor d(30) xor d(29) xor d(27) xor d(25) xor d(24) xor d(22) xor d(21) xor d(18) xor d(17) xor d(16) xor d(14) xor d(13) xor d(10) xor d(9) xor d(5) xor c(0) xor c(2) xor c(3) xor c(5) xor c(7) xor c(12) xor c(13) xor c(14);
+                NextCrc(11) := d(55) xor d(54) xor d(53) xor d(48) xor d(46) xor d(44) xor d(43) xor d(41) xor d(37) xor d(34) xor d(32) xor d(31) xor d(30) xor d(28) xor d(26) xor d(25) xor d(23) xor d(22) xor d(19) xor d(18) xor d(17) xor d(15) xor d(14) xor d(11) xor d(10) xor d(6) xor c(1) xor c(3) xor c(4) xor c(6) xor c(8) xor c(13) xor c(14) xor c(15);
+                NextCrc(12) := d(54) xor d(52) xor d(51) xor d(48) xor d(47) xor d(45) xor d(44) xor d(38) xor d(31) xor d(29) xor d(28) xor d(24) xor d(23) xor d(22) xor d(18) xor d(16) xor d(15) xor d(8) xor d(7) xor d(4) xor d(0) xor c(4) xor c(5) xor c(7) xor c(8) xor c(11) xor c(12) xor c(14);
+                NextCrc(13) := d(55) xor d(53) xor d(52) xor d(49) xor d(48) xor d(46) xor d(45) xor d(39) xor d(32) xor d(30) xor d(29) xor d(25) xor d(24) xor d(23) xor d(19) xor d(17) xor d(16) xor d(9) xor d(8) xor d(5) xor d(1) xor c(5) xor c(6) xor c(8) xor c(9) xor c(12) xor c(13) xor c(15);
+                NextCrc(14) := d(54) xor d(53) xor d(50) xor d(49) xor d(47) xor d(46) xor d(40) xor d(33) xor d(31) xor d(30) xor d(26) xor d(25) xor d(24) xor d(20) xor d(18) xor d(17) xor d(10) xor d(9) xor d(6) xor d(2) xor c(0) xor c(6) xor c(7) xor c(9) xor c(10) xor c(13) xor c(14);
+                NextCrc(15) := d(55) xor d(54) xor d(51) xor d(50) xor d(48) xor d(47) xor d(41) xor d(34) xor d(32) xor d(31) xor d(27) xor d(26) xor d(25) xor d(21) xor d(19) xor d(18) xor d(11) xor d(10) xor d(7) xor d(3) xor c(1) xor c(7) xor c(8) xor c(10) xor c(11) xor c(14) xor c(15);
+            when others =>
+                NextCrc := c;
+        end case;
+        return NextCrc;
+    end Crc16;
         
     ------------------------------------------------------------
     --! CONSTANTS
