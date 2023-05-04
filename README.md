@@ -11,14 +11,14 @@ Signal and constant names are derived from the ParameterName key
 All names are scrubbed to be VHDL compatible and follow the NASA style guide
 
 The index number and AccessType key of each object determine how the object is parsed:
-Below 0x2000: (communication objects)
-    const: Declared as "constant", unless the ";vhdlport" key is defined, then it is an "in" port signal
-    others: Declared as internal "signal"
-0x2000 and above: (application objects)
-    const: Declared as "constant" (maybe could be "generic"?)
-    ro: Declared as "in" port signal
-    rw: Declared as "out" port signal with output buffer for reading internally
-    wo: Declared as "out" port signal with additional "out" port signal "_strb" of type std_logic that is pulsed high during SDO download
+*Below 0x2000: (communication objects)
+    *const: Declared as "constant", unless the mux is specified as a --port argument, then it is an "in" port signal
+    *others: Declared as internal "signal"
+*0x2000 and above: (application objects)
+    *const: Declared as "constant" (maybe could be "generic"?)
+    *ro: Declared as "in" port signal
+    *rw: Declared as "out" port signal with output buffer for reading internally
+    *wo: Declared as "out" port signal with additional "out" port signal "_strb" of type std_logic that is pulsed high during SDO download
 
 ### Data Types
 

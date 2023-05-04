@@ -14,6 +14,7 @@ parser.add_argument("eds", type=str, help="EDS file")
 parser.add_argument("--sync", nargs="?", const=True, default=False, type=bool, help="Adds output signal for single-clock pulse when SYNC is received")
 parser.add_argument("--gfc", nargs="?", const=True, default=False, type=bool, help="Adds output signal for single-clock pulse when GFC is received")
 parser.add_argument("--timestamp", nargs="?", const=True, default=False, type=bool, help="Adds output signal for TIME object")
+parser.add_argument("--port", nargs="+", action="extend", type=lambda x: int(x, 0), default=[], help="Object dictionary multiplexers to expose as in ports (0x101804, e.g.)")
 args = parser.parse_args()
 
 def format_constant(name, **kwargs):
@@ -35,7 +36,7 @@ def format_constant(name, **kwargs):
     return prefix + name + suffix
 
 
-def make_obata_type(odi):
+def make_object_from_data_type(odi):
     odi = int(odi, 0)
     o = {}
     if odi == 0x0001: # BOOLEAN
@@ -97,7 +98,7 @@ def format_value(value, bit_length):
 
 
 def make_object(o):
-    obj = make_obata_type(o.get("datatype"))
+    obj = make_object_from_data_type(o.get("datatype"))
     obj["parameter_name"] = o.get("parametername")
     obj["access_type"] = o.get("accesstype")
     name = obj.get("parameter_name")
@@ -130,7 +131,7 @@ def make_object(o):
             obj["low_limit"] = format_value(int(o.get("lowlimit"), 0), bit_length)
         if o.get("highlimit") is not None:
             obj["high_limit"] = format_value(int(o.get("highlimit"), 0), bit_length)
-    obj.update(make_obata_type(o.get("datatype")))
+    obj.update(make_object_from_data_type(o.get("datatype")))
     print(o.get("parametername") + " => " + obj.get("name"))
     return obj
 
@@ -205,7 +206,7 @@ for odi in od:
             if o.get("bit_length") == 0:
                 segmented_sdo = True
                 continue
-            if odi >= 0x2000 or bool(so.get(";vhdlport", False)):
+            if odi >= 0x2000 or ((odi << 8) + odsi) in args.port:
                 if o.get("access_type") in ["ro", "rw", "wo"]:
                     port_signals.append(o)
                 if o.get("access_type") == "wo":
@@ -215,12 +216,15 @@ for odi in od:
                         "data_type": "std_logic"
                     })
     else:
-        o = make_object(obj)
+        try:
+            o = make_object(obj)
+        except Exception as e:
+            raise Exception("Error processing object 0x{:04X}".format(odi)) from e
         objects.update({odi << 8: o})
         if o.get("bit_length") == 0:
             segmented_sdo = True
             continue
-        if odi >= 0x2000 or bool(obj.get(";vhdlport", False)):
+        if odi >= 0x2000 or (odi << 8) in args.port:
             if o.get("access_type") in ["ro", "rw", "wo"]:
                 port_signals.append(o)
             if o.get("access_type") == "wo":
@@ -229,7 +233,7 @@ for odi in od:
                     "direction": "out",
                     "data_type": "std_logic"
                 })
-                
+
 if 0x120001 not in objects:
     segmented_sdo = False;
 
@@ -1678,6 +1682,8 @@ for mux in objects:
         limit_check += " and {} >= {}".format(assignment, obj.get("low_limit"))
     if obj.get("high_limit") is not None:
         limit_check += " and {} >= {}".format(assignment, obj.get("high_limit"))
+    if obj.get("default_value") is None:
+        raise Exception("DefaultValue is required for mux 0x{:06}".format(mux))
     if obj.get("access_type") == "rw":
         fp.write("""    process (Clock, Reset_n)
     begin
