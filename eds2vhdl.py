@@ -988,12 +988,18 @@ if 0x101700 in objects:
     --! Heartbeat producer timer
     process (Reset_n, Clock)
         variable HeartbeatProducerCounter   : natural range 0 to 65535;
+        variable HeartbeatConsumerReset     : std_logic;
     begin
         if Reset_n = '0' then
             HeartbeatProducerCounter := 0;
             HeartbeatProducerInterrupt <= '0';
         elsif rising_edge(Clock) then
-            if NmtState_ob = CanOpen.NMT_STATE_INITIALISATION or {0} = 0 then
+            if (
+                NmtState_ob = CanOpen.NMT_STATE_INITIALISATION
+                or {0} = 0
+                or CurrentState = STATE_RESET_COMM
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1017" and TxSdoInitiateMuxSubIndex = x"00")
+            ) then
                 HeartbeatProducerCounter := 0;
             elsif MillisecondEnable = '1' then
                 if HeartbeatProducerCounter = {0} - 1 then
@@ -1008,13 +1014,16 @@ if 0x101700 in objects:
                 HeartbeatProducerInterrupt <= '0';
             end if;
         end if;
-    end process;""".format(objects.get(0x101700).get("name")))
+    end process;
+""".format(objects.get(0x101700).get("name")))
 else:
     fp.write("""
     HeartbeatProducerInterrupt <= '0';
 """)
 
-fp.write("""    TpdoInterruptEnable <= '1' when Sync_ob = '1' and NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL else '0'; --! "Global" TPDO interrupt enable\n""")
+fp.write("""
+    --! TPDO
+    TpdoInterruptEnable <= '1' when Sync_ob = '1' and NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL else '0'; --! "Global" TPDO interrupt enable\n""")
 
 for i in range(4):
     fp.write("""
@@ -1181,7 +1190,7 @@ else:
 
 if 0x120001 in objects:
     fp.write("""
-    --! SDO -- TODO: abort if SdoActive and transaction restarted without aborting
+    --! SDO
     RxSdoInitiateMux <= RxSdoInitiateMuxIndex & RxSdoInitiateMuxSubIndex;
     process (Clock, Reset_n, SegmentedSdoData, SegmentedSdoDataValid)
         variable SegmentedSdoReadBytes : unsigned(31 downto 0);
@@ -1385,62 +1394,74 @@ if 0x120001 in objects:
                     end if;
                 elsif RxSdoCs = CanOpen.SDO_CCS_BUR then
                     if RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE then
-                        if RxSdoBlockUploadInitiateBlksize(7) = '1' or RxSdoBlockUploadInitiateBlksize(6 downto 0) = b"0000000" then
+                        if SdoActive then
                             TxSdoCs <= CanOpen.SDO_CS_ABORT;
                             TxSdo(4 downto 0) <= (others => '0');
                             TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
                             TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
-                            TxSdoAbortCode <= CanOpen.SDO_ABORT_BLKSIZE;
+                            TxSdoAbortCode <= CanOpen.SDO_ABORT_CS; --! Unexpected subcommand
                             SdoExternal := false;
                             SegmentedSdoReadDataEnable <= '0';
                             SdoActive := false;
                             SdoBlockMode := false;
                             SdoPending := false;
                         else
-                            case SdoMux is
+                            if RxSdoBlockUploadInitiateBlksize(7) = '1' or RxSdoBlockUploadInitiateBlksize(6 downto 0) = b"0000000" then
+                                TxSdoCs <= CanOpen.SDO_CS_ABORT;
+                                TxSdo(4 downto 0) <= (others => '0');
+                                TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
+                                TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
+                                TxSdoAbortCode <= CanOpen.SDO_ABORT_BLKSIZE;
+                                SdoExternal := false;
+                                SegmentedSdoReadDataEnable <= '0';
+                                SdoActive := false;
+                                SdoBlockMode := false;
+                                SdoPending := false;
+                            else
+                                case SdoMux is
 """)
     for mux in objects:
         obj = objects.get(mux)
-        fp.write("""                                when x"{:06X}" =>
+        fp.write("""                                   when x"{:06X}" =>
 """.format(mux))
         if obj.get("access_type") == "wo":
             fp.write("""                                    TxSdoCs <= CanOpen.SDO_CS_ABORT;
-                                    TxSdo(4 downto 0) <= (others => '0');
-                                    TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
-                                    TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
-                                    TxSdoAbortCode <= CanOpen.SDO_ABORT_WO;
-                                    SdoExternal := false;
-                                    SegmentedSdoReadDataEnable <= '0';
-                                    SdoActive := false;
-                                    SdoBlockMode := false;
-""")
-            continue;
-        if obj.get("bit_length") == 0 or obj.get("bit_length") > 32:
-            fp.write("""                                    if SegmentedSdoData(31 downto 0) = x"00000000" then
-                                        TxSdoCs <= CanOpen.SDO_CS_ABORT;
                                         TxSdo(4 downto 0) <= (others => '0');
                                         TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
                                         TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
-                                        TxSdoAbortCode <= CanOpen.SDO_ABORT_NO_DATA;
+                                        TxSdoAbortCode <= CanOpen.SDO_ABORT_WO;
                                         SdoExternal := false;
                                         SegmentedSdoReadDataEnable <= '0';
                                         SdoActive := false;
                                         SdoBlockMode := false;
-                                        SdoPending := false;
-                                    else
-                                        TxSdoCs <= CanOpen.SDO_SCS_BUR;
-                                        TxSdo(4 downto 3) <= (others => '0');
-                                        TxSdoBlockUploadInitiateSc <= '1'; --! Server CRC support
-                                        TxSdoBlockUploadInitiateS <= '1'; --! Size indicator
-                                        TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE(0);
-                                        TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
-                                        TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
-                                        TxSdoBlockUploadInitiateSize <= SegmentedSdoData(31 downto 0);
-                                        SegmentedSdoReadBytes := unsigned(SegmentedSdoData(31 downto 0));
-                                        SdoActive := true;
-                                        SdoBlockSize := unsigned(RxSdoBlockUploadInitiateBlksize(6 downto 0));
-                                        SdoSequenceNumber := (others => '0');
-                                    end if;
+""")
+            continue;
+        if obj.get("bit_length") == 0 or obj.get("bit_length") > 32:
+            fp.write("""                                        if SegmentedSdoData(31 downto 0) = x"00000000" then
+                                            TxSdoCs <= CanOpen.SDO_CS_ABORT;
+                                            TxSdo(4 downto 0) <= (others => '0');
+                                            TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
+                                            TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
+                                            TxSdoAbortCode <= CanOpen.SDO_ABORT_NO_DATA;
+                                            SdoExternal := false;
+                                            SegmentedSdoReadDataEnable <= '0';
+                                            SdoActive := false;
+                                            SdoBlockMode := false;
+                                            SdoPending := false;
+                                        else
+                                            TxSdoCs <= CanOpen.SDO_SCS_BUR;
+                                            TxSdo(4 downto 3) <= (others => '0');
+                                            TxSdoBlockUploadInitiateSc <= '1'; --! Server CRC support
+                                            TxSdoBlockUploadInitiateS <= '1'; --! Size indicator
+                                            TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE(0);
+                                            TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
+                                            TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
+                                            TxSdoBlockUploadInitiateSize <= SegmentedSdoData(31 downto 0);
+                                            SegmentedSdoReadBytes := unsigned(SegmentedSdoData(31 downto 0));
+                                            SdoActive := true;
+                                            SdoBlockSize := unsigned(RxSdoBlockUploadInitiateBlksize(6 downto 0));
+                                            SdoSequenceNumber := (others => '0');
+                                        end if;
 """)
         else:
             n = 4 - math.ceil(obj.get("bit_length") / 8)
@@ -1453,89 +1474,104 @@ if 0x120001 in objects:
                 data += obj.get("name")
             if not obj.get("data_type").startswith("std_logic"):
                  data += ")"
-            fp.write("""                                    TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
-                                    TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
-                                    if RxSdoBlockUploadInitiatePst /= x"00" and unsigned(RxSdoBlockUploadInitiatePst) <= 4 then
-                                        TxSdoCs <= CanOpen.SDO_SCS_IUR;
-                                        TxSdoUploadInitiateN <= b"{0:02b}";
-                                        TxSdoUploadInitiateE <= '1';
-                                        TxSdoUploadInitiateS <= '1';
-                                        TxSdoUploadInitiateD <= {1};
-                                    else
-                                        TxSdoCs <= CanOpen.SDO_SCS_BUR;
-                                        TxSdo(4 downto 3) <= (others => '0');
-                                        TxSdoBlockUploadInitiateSc <= '1'; --! Server CRC support
-                                        TxSdoBlockUploadInitiateS <= '1'; --! Size indicator
-                                        TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE(0);
-                                        TxSdoBlockUploadInitiateSize <= x"{2:08X}";
-                                        SegmentedSdoReadBytes := x"{2:08X}";
-                                        SdoActive := true;
-                                        SdoBlockSize := unsigned(RxSdoBlockUploadInitiateBlksize(6 downto 0));
-                                        SdoExternal := false;
-                                        SdoSegDataInternal := {3};
-                                        SdoSequenceNumber := (others => '0');
-                                    end if;
+            fp.write("""                                        TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
+                                        TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
+                                        if RxSdoBlockUploadInitiatePst /= x"00" and unsigned(RxSdoBlockUploadInitiatePst) <= 4 then
+                                            TxSdoCs <= CanOpen.SDO_SCS_IUR;
+                                            TxSdoUploadInitiateN <= b"{0:02b}";
+                                            TxSdoUploadInitiateE <= '1';
+                                            TxSdoUploadInitiateS <= '1';
+                                            TxSdoUploadInitiateD <= {1};
+                                        else
+                                            TxSdoCs <= CanOpen.SDO_SCS_BUR;
+                                            TxSdo(4 downto 3) <= (others => '0');
+                                            TxSdoBlockUploadInitiateSc <= '1'; --! Server CRC support
+                                            TxSdoBlockUploadInitiateS <= '1'; --! Size indicator
+                                            TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE(0);
+                                            TxSdoBlockUploadInitiateSize <= x"{2:08X}";
+                                            SegmentedSdoReadBytes := x"{2:08X}";
+                                            SdoActive := true;
+                                            SdoBlockSize := unsigned(RxSdoBlockUploadInitiateBlksize(6 downto 0));
+                                            SdoExternal := false;
+                                            SdoSegDataInternal := {3};
+                                            SdoSequenceNumber := (others => '0');
+                                        end if;
 """.format(n, zero_fill(32 - obj.get("bit_length")) + data, 4 - n, zero_fill(56 - obj.get("bit_length")) + data))
-    fp.write("""                                when others =>
-                                    TxSdoCs <= CanOpen.SDO_CS_ABORT;
-                                    TxSdo(4 downto 0) <= (others => '0');
-                                    TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
-                                    TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
-                                    TxSdoAbortCode <= CanOpen.SDO_ABORT_DNE;
-                                    SdoExternal := false;
-                                    SegmentedSdoReadDataEnable <= '0';
-                                    SdoActive := false;
-                                    SdoBlockMode := false;
-                                    SdoPending := false;                                
-                            end case;
+    fp.write("""                                    when others =>
+                                        TxSdoCs <= CanOpen.SDO_CS_ABORT;
+                                        TxSdo(4 downto 0) <= (others => '0');
+                                        TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
+                                        TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
+                                        TxSdoAbortCode <= CanOpen.SDO_ABORT_DNE;
+                                        SdoExternal := false;
+                                        SegmentedSdoReadDataEnable <= '0';
+                                        SdoActive := false;
+                                        SdoBlockMode := false;
+                                        SdoPending := false;                                
+                                end case;
+                            end if;
                         end if;
                         SdoInterrupt <= '1';
-                    elsif RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_START then
-                        SdoBlockCrc := (others => '0'); --! Initialize CRC
-                        SdoBlockMode := true;
-                        SdoPending := true;
-                    elsif RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_RESPONSE then
-                        if unsigned(RxSdoBlockUploadSubBlockAckseq(6 downto 0)) /= SdoSequenceNumber then --! ackseq check
-                            TxSdoCs <= CanOpen.SDO_CS_ABORT;
-                            TxSdo(4 downto 0) <= (others => '0');
-                            TxSdoInitiateMuxIndex <= SdoMux(23 downto 8);
-                            TxSdoInitiateMuxSubIndex <= SdoMux(7 downto 0);
-                            TxSdoAbortCode <= CanOpen.SDO_ABORT_SEQNO;
-                            SdoExternal := false;
-                            SegmentedSdoReadDataEnable <= '0';
-                            SdoInterrupt <= '1';
-                            SdoActive := false;
-                            SdoBlockMode := false;
-                            SdoPending := false;
-                        elsif TxSdoBlockUploadSubBlockC = '1' then --! Complete
-                            TxSdoCs <= CanOpen.SDO_SCS_BUR;
-                            TxSdoBlockUploadEndN <= std_logic_vector(resize(7 - SegmentedSdoReadBytes, 3));
-                            TxSdo(1) <= CanOpen.SDO_BLOCK_SUBCOMMAND_END(1);
-                            TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_END(0);
-                            TxSdoBlockUploadEndCrc <= SdoBlockCrc;
-                            TxSdo(63 downto 24) <= (others => '0');
-                            SdoInterrupt <= '1';
-                            SdoActive := false;
-                        elsif RxSdoBlockUploadSubBlockBlksize(7) = '1' or RxSdoBlockUploadSubBlockBlksize(6 downto 0) = b"0000000" then
-                            TxSdoCs <= CanOpen.SDO_CS_ABORT;
-                            TxSdo(4 downto 0) <= (others => '0');
-                            TxSdoInitiateMuxIndex <= SdoMux(23 downto 8);
-                            TxSdoInitiateMuxSubIndex <= SdoMux(7 downto 0);
-                            TxSdoAbortCode <= CanOpen.SDO_ABORT_BLKSIZE;
-                            SdoExternal := false;
-                            SegmentedSdoReadDataEnable <= '0';
-                            SdoInterrupt <= '1';
-                            SdoActive := false;
-                            SdoBlockMode := false;
-                            SdoPending := false;
-                        else
-                            SdoBlockSize := unsigned(RxSdoBlockUploadSubBlockBlksize(6 downto 0));
+                    elsif SdoActive then
+                        if RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_START then
+                            SdoBlockCrc := (others => '0'); --! Initialize CRC
                             SdoBlockMode := true;
                             SdoPending := true;
-                            SdoSequenceNumber := (others => '0');
+                        elsif RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_RESPONSE then
+                            if unsigned(RxSdoBlockUploadSubBlockAckseq(6 downto 0)) /= SdoSequenceNumber then --! ackseq check
+                                TxSdoCs <= CanOpen.SDO_CS_ABORT;
+                                TxSdo(4 downto 0) <= (others => '0');
+                                TxSdoInitiateMuxIndex <= SdoMux(23 downto 8);
+                                TxSdoInitiateMuxSubIndex <= SdoMux(7 downto 0);
+                                TxSdoAbortCode <= CanOpen.SDO_ABORT_SEQNO;
+                                SdoExternal := false;
+                                SegmentedSdoReadDataEnable <= '0';
+                                SdoInterrupt <= '1';
+                                SdoActive := false;
+                                SdoBlockMode := false;
+                                SdoPending := false;
+                            elsif TxSdoBlockUploadSubBlockC = '1' then --! Complete
+                                TxSdoCs <= CanOpen.SDO_SCS_BUR;
+                                TxSdoBlockUploadEndN <= std_logic_vector(resize(7 - SegmentedSdoReadBytes, 3));
+                                TxSdo(1) <= CanOpen.SDO_BLOCK_SUBCOMMAND_END(1);
+                                TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_END(0);
+                                TxSdoBlockUploadEndCrc <= SdoBlockCrc;
+                                TxSdo(63 downto 24) <= (others => '0');
+                                SdoInterrupt <= '1';
+                                SdoActive := false;
+                            elsif RxSdoBlockUploadSubBlockBlksize(7) = '1' or RxSdoBlockUploadSubBlockBlksize(6 downto 0) = b"0000000" then
+                                TxSdoCs <= CanOpen.SDO_CS_ABORT;
+                                TxSdo(4 downto 0) <= (others => '0');
+                                TxSdoInitiateMuxIndex <= SdoMux(23 downto 8);
+                                TxSdoInitiateMuxSubIndex <= SdoMux(7 downto 0);
+                                TxSdoAbortCode <= CanOpen.SDO_ABORT_BLKSIZE;
+                                SdoExternal := false;
+                                SegmentedSdoReadDataEnable <= '0';
+                                SdoInterrupt <= '1';
+                                SdoActive := false;
+                                SdoBlockMode := false;
+                                SdoPending := false;
+                            else
+                                SdoBlockSize := unsigned(RxSdoBlockUploadSubBlockBlksize(6 downto 0));
+                                SdoBlockMode := true;
+                                SdoPending := true;
+                                SdoSequenceNumber := (others => '0');
+                            end if;
+                        elsif RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_END then
+                            SdoActive := false;
                         end if;
-                    elsif RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_END then
+                    else --! SDO Block Upload was not initialized
+                        TxSdoCs <= CanOpen.SDO_CS_ABORT;
+                        TxSdo(4 downto 0) <= (others => '0');
+                        TxSdoInitiateMuxIndex <= (others => '0');
+                        TxSdoInitiateMuxSubIndex <= (others => '0');
+                        TxSdoAbortCode <= CanOpen.SDO_ABORT_CS; --! Unexpected subcommand
+                        SdoExternal := false;
+                        SegmentedSdoReadDataEnable <= '0';
+                        SdoInterrupt <= '1';
                         SdoActive := false;
+                        SdoBlockMode := false;
+                        SdoPending := false;
                     end if;
                 else
                     TxSdoCs <= CanOpen.SDO_CS_ABORT;
