@@ -51,6 +51,7 @@ Data type lengths of 0 (undefined) and greater than 32 support "ro" access via S
 | 0x1A01  | TPDO2 mapping parameter     | const or read-only |
 | 0x1A02  | TPDO3 mapping parameter     | const or read-only |
 | 0x1A03  | TPDO4 mapping parameter     | const or read-only |
+| 0x1F80  | NMT Startup                 | bit 3 (self-starting) only
 
 ### ErrorRegister
 Low-to-high bit transitions perform EMCY write with CanOpen.EMCY_EEC_GENERIC; to-all-zeroes transition performs EMCY write with CanOpen.EMCY_EEC_NO_ERROR

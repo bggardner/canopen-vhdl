@@ -774,8 +774,18 @@ fp.write("""            else
                         NmtState_ob <= CanOpen.NMT_STATE_INITIALISATION;
                     when STATE_BOOTUP_WAIT =>
                         if TxAck = '1' then
-                            NmtState_ob <= CanOpen.NMT_STATE_PREOPERATIONAL;
-                        else
+""")
+if 0x1F8000 in objects:
+    fp.write("""                            if {0}(3) = '1' then
+                                NmtState_ob <= CanOpen.NMT_STATE_OPERATIONAL;
+                            else
+                                NmtState_ob <= CanOpen.NMT_STATE_PREOPERATIONAL;
+                            end if;
+""".format(objects.get(0x1F8000).get("name")))
+else:
+    fp.write("""                            NmtState_ob <= CanOpen.NMT_STATE_PREOPERATIONAL;
+""")
+fp.write("""            else
                             NmtState_ob <= CanOpen.NMT_STATE_INITIALISATION;
                         end if;
                     when STATE_CAN_RX_READ =>
