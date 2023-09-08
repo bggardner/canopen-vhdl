@@ -181,7 +181,7 @@ for i in indices:
         subs = {}
         si = 0
         while len(subs) <= sub_number and si <= 0xFF:
-            section = "{:04X}sub{:d}".format(i, si)
+            section = "{:04X}sub{:X}".format(i, si)
             if eds.has_section(section):
                  subs.update({si: eds[section]})
             si += 1
