@@ -413,7 +413,7 @@ architecture Behavioral of """ + entity_name + """ is
     signal EmcyEec          : std_logic_vector(15 downto 0); --! Emergency error code
     signal EmcyMsef         : std_logic_vector(39 downto 0); --! Manufacturer-specific error code
     signal Timestamp_ob     : CanOpen.TimeOfDay;
-    
+
     --! Internal SDO signals
     signal RxSdo,
            TxSdo            : std_logic_vector(63 downto 0);
@@ -488,6 +488,12 @@ fp.write("""
            Tpdo2InterruptEnable,
            Tpdo3InterruptEnable,
            Tpdo4InterruptEnable : std_logic;
+
+    --! TPDO SYNC Counters
+    signal Tpdo1SyncCounter,
+           Tpdo2SyncCounter,
+           Tpdo3SyncCounter,
+           Tpdo4SyncCounter     : unsigned(7 downto 0);
 
     --! Object dictionary indices: Manufacturer-specific profile area
 """);
@@ -1033,33 +1039,52 @@ else:
 
 fp.write("""
     --! TPDO
-    TpdoInterruptEnable <= '1' when Sync_ob = '1' and NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL else '0'; --! "Global" TPDO interrupt enable\n""")
+    TpdoInterruptEnable <= '1' when NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL else '0'; --! "Global" TPDO interrupt enable\n""")
 
 for i in range(4):
     fp.write("""
     --! TPDO{0} interrupt
 """.format(i + 1))
-    mux = ((0x1800 + i) << 8) + 0x01
-    if mux not in objects:
+    cob_id_mux = ((0x1800 + i) << 8) + 0x01
+    xtype_mux = ((0x1800 + i) << 8) + 0x02
+    if cob_id_mux not in objects or xtype_mux not in objects:
         fp.write("""    Tpdo{0}InterruptEnable <= '0';
     Tpdo{0}Interrupt <= '0';
 """.format(i + 1))
         continue
-    obj = objects.get(mux)
-    fp.write("""    Tpdo{0}InterruptEnable <= '1' when TpdoInterruptEnable = '1' or (CurrentState = STATE_CAN_RX_READ and {1}(31) = '0' and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) ={1}(28 downto 0) and RxFrame_q.Rtr = '1') else '0';
+    cob_id = objects.get(cob_id_mux)
+    xtype = objects.get(xtype_mux)
+    fp.write("""    Tpdo{0}InterruptEnable <=
+        '1' when
+            TpdoInterruptEnable = '1' and {1}(31) = '0' -- Valid TPDO
+            and (
+                ({1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) ={1}(28 downto 0) and RxFrame_q.Rtr = '1') -- RTR
+                or ((({2} > 0 and {2} <= 240) or {2} = x"FC") and Sync_ob = '1' and Tpdo{0}SyncCounter = {2} - 1) -- Synchronous
+            )
+        else '0';
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
             Tpdo{0}Interrupt <= '0';
+            Tpdo{0}SyncCounter <= (others => '0');
         elsif rising_edge(Clock) then
             if Tpdo{0}InterruptEnable = '1' then
                 Tpdo{0}Interrupt <= '1';
             elsif CurrentState = STATE_TPDO{0} then
                 Tpdo{0}Interrupt <= '0';
             end if;
+            if Sync_ob = '1' then
+                if CurrentState = STATE_RESET_COMM then
+                    Tpdo{0}SyncCounter <= (others => '0'); -- TODO: Set this to sub-index 6
+                elsif Tpdo{0}SyncCounter < {2} - 1 then
+                    Tpdo{0}SyncCounter <= Tpdo{0}SyncCounter + 1;
+                else
+                    Tpdo{0}SyncCounter <= (others => '0');
+                end if;
+            end if;
         end if;
     end process;
-""".format(i + 1, obj.get("name")))
+""".format(i + 1, cob_id.get("name"), xtype.get("name")))
 
 fp.write("""
     --! TPDO mappings

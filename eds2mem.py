@@ -24,10 +24,10 @@ if args.zlib > 0:
     before = len(data)
     data = zlib.compress(data, args.zlib)
     print("Compressed to {:.1f}%".format(len(data) / before * 100))
-    
+
 addr_format = "@{:0" + "{}".format(math.ceil(math.ceil(math.log(len(data), 2)) / 4)) + "X} "
 data_format = "{:0{" + "{}".format(args.word * 2) + "}X}\n"
-    
+
 with open(args.mem_file, "w") as fp:
     fp.write("// Generated with " + " ".join(argv) + "\n")
     fp.write("// {} bytes valid\n".format(len(data)))
