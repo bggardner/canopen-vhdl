@@ -282,6 +282,17 @@ if args.sync:
         "direction": "out",
         "data_type": "std_logic"
     })
+for i in range(4, 0, -1):
+    cob_id_mux = ((0x1800 + i - 1) << 8) + 0x01
+    xtype_mux = ((0x1800 + i - 1) << 8) + 0x02
+    if xtype_mux in objects:
+        xtype = objects.get(xtype_mux)
+        if xtype.get("access_type") == "rw" or (xtype.get("access_type") == "const" and intval(xtype.get("default_value"), 0) in [0x00, 0xFD, 0xFE, 0xFF]):
+            port_signals.insert(0, {
+                "name": f"Tpdo{i}Event",
+                "direction": "in",
+                "data_type": "std_logic"
+            })
 
 # Error checks
 if 0x100000 not in objects:
@@ -292,7 +303,7 @@ if 0x101800 not in objects:
     raise ValueError("Identity object is required")
 if 0x101801 not in objects:
     raise ValueError("Vendor-ID is required")
-names = []            
+names = []
 for mux in objects:
     name = objects.get(mux).get("name")
     if name in names:
@@ -479,6 +490,10 @@ fp.write("""
     signal EmcyInterrupt,
            HeartbeatProducerInterrupt,
            SdoInterrupt,
+           Tpdo1Event_q,
+           Tpdo2Event_q,
+           Tpdo3Event_q,
+           Tpdo4Event_q,
            Tpdo1Interrupt,
            Tpdo2Interrupt,
            Tpdo3Interrupt,
@@ -1048,7 +1063,8 @@ for i in range(4):
     cob_id_mux = ((0x1800 + i) << 8) + 0x01
     xtype_mux = ((0x1800 + i) << 8) + 0x02
     if cob_id_mux not in objects or xtype_mux not in objects:
-        fp.write("""    Tpdo{0}InterruptEnable <= '0';
+        fp.write("""    Tpdo{0}Event <= '0';
+    Tpdo{0}InterruptEnable <= '0';
     Tpdo{0}Interrupt <= '0';
 """.format(i + 1))
         continue
@@ -1059,15 +1075,22 @@ for i in range(4):
             TpdoInterruptEnable = '1' and {1}(31) = '0' -- Valid TPDO
             and (
                 ({1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) ={1}(28 downto 0) and RxFrame_q.Rtr = '1') -- RTR
-                or ((({2} > 0 and {2} <= 240) or {2} = x"FC") and Sync_ob = '1' and Tpdo{0}SyncCounter = {2} - 1) -- Synchronous
+                or (Sync_ob = '1' and (({2} = 0 and Tpdo{0}Event_q = '1') or ((({2} > 0 and {2} <= 240) or {2} = x"FC") and Tpdo{0}SyncCounter = {2} - 1))) -- Synchronous
+                or (Tpdo{0}Event = '1' and {2} >= x"FE") -- Asynchronous (event-driven)
             )
         else '0';
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
+            Tpdo{0}Event_q <= '0';
             Tpdo{0}Interrupt <= '0';
             Tpdo{0}SyncCounter <= (others => '0');
         elsif rising_edge(Clock) then
+            if Tpdo{0}Event = '1' then
+                Tpdo{0}Event_q <= '1';
+            elsif CurrentState = STATE_TPDO{0} then
+                Tpdo{0}Event_q <= '0';
+            end if;
             if Tpdo{0}InterruptEnable = '1' then
                 Tpdo{0}Interrupt <= '1';
             elsif CurrentState = STATE_TPDO{0} then

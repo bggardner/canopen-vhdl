@@ -43,10 +43,10 @@ Data type lengths of 0 (undefined) and greater than 32 support "ro" access via S
 | 0x1022  | Store format                | |
 | 0x1029  | Error behavior              | sub-indices 0x00-0x02 only, error class values 0x00-0x02 only |
 | 0x1200  | Server SDO paramter         | mandatory entries only, 11-bit CAN-ID only, expedited download only, supports block upload PSTs <= 4 |
-| 0x1800  | TPDO1 comm. parameter       | mandatory entries only, 11-bit CAN-ID only, synchronous cyclic values only |
-| 0x1801  | TPDO2 comm. parameter       | mandatory entries only, 11-bit CAN-ID only, synchronous cyclic values only |
-| 0x1802  | TPDO3 comm. parameter       | mandatory entries only, 11-bit CAN-ID only, synchronous cyclic values only |
-| 0x1803  | TPDO4 comm. parameter       | mandatory entries only, 11-bit CAN-ID only, synchronous cyclic values only |
+| 0x1800  | TPDO1 comm. parameter       | mandatory entries only, 11-bit CAN-ID only |
+| 0x1801  | TPDO2 comm. parameter       | mandatory entries only, 11-bit CAN-ID only |
+| 0x1802  | TPDO3 comm. parameter       | mandatory entries only, 11-bit CAN-ID only |
+| 0x1803  | TPDO4 comm. parameter       | mandatory entries only, 11-bit CAN-ID only |
 | 0x1A00  | TPDO1 mapping parameter     | const or read-only |
 | 0x1A01  | TPDO2 mapping parameter     | const or read-only |
 | 0x1A02  | TPDO3 mapping parameter     | const or read-only |
