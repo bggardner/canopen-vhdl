@@ -33,7 +33,8 @@ Data type lengths of 0 (undefined) and greater than 32 support "ro" access via S
 | ----- | ----------- | ----------- |
 | 0x1000  | Device type
 | 0x1001  | Error register              | OR'd with ErrorRegister (in) port |
-| 0x1005  | COB-ID SYNC                 | consumer only, 11-bit CAN-ID only |
+| 0x1005  | COB-ID SYNC                 | 11-bit CAN-ID only |
+| 0x1006  | Communication cycle period  | |
 | 0x1012  | COB-ID TIME                 | consumer only, 11-bit CAN-ID only |
 | 0x1014  | COB-ID EMCY                 | producer only, 11-bit CAN-ID only, generic EECs only, no MSEFs, reset error EMCY write only when no errors |
 | 0x1016  | Consumer heartbeat time     | one consumer only |
