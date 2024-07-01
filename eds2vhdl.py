@@ -406,14 +406,12 @@ architecture Behavioral of """ + entity_name + """ is
     signal RxFrame,
            RxFrame_q,
            TxFrame,
-           TxFrame_ob,
            TxFrame_q        : CanBus.Frame; -- CanLite frame interfacing
     signal RxFifoReadEnable,
            RxFifoWriteEnable,
            RxFifoEmpty,
            RxFifoFull,
            TxFifoReadEnable,
-           TxFifoWriteEnable,
            TxFifoEmpty      : std_logic; -- CanLite FIFO interface
     signal SyncAck,
            TxAck            : std_logic; -- CanLite successful transmission
@@ -577,7 +575,6 @@ fp.write("""
     -- Single depth FIFO emulator for CanLite interface
     RxFifoReadEnable <= '1' when CurrentState = STATE_CAN_RX_STROBE else '0';
     RxFifoFull <= '0';
-    TxFifoWriteEnable <= '1' when CurrentState = STATE_CAN_TX_STROBE else '0';
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -589,13 +586,6 @@ fp.write("""
                 Data => (others => (others => '0'))
             );
             RxFifoEmpty <= '1';
-            TxFrame_ob <= (
-                Id => (others => '0'),
-                Rtr => '0',
-                Ide => '0',
-                Dlc => (others => '0'),
-                Data => (others => (others => '0'))
-            );
             TxFrame_q <= (
                 Id => (others => '0'),
                 Rtr => '0',
@@ -616,17 +606,14 @@ fp.write("""
                 RxFifoEmpty <= '1';
             end if;
             if TxFifoReadEnable = '1' then
-                TxFrame_q <= TxFrame_ob;
-            end if;
-            if TxFifoWriteEnable = '1' then
-                TxFrame_ob <= TxFrame;
+                TxFrame_q <= TxFrame;
             end if;
             if CanBus."="(CanStatus.State, CanBus.STATE_RESET) or CanBus."="(CanStatus.State, CanBus.STATE_BUS_OFF) then
                 TxFifoEmpty <= '1';
-            elsif TxFifoWriteEnable = '1' then
-                TxFifoEmpty <= '0';
             elsif TxFifoReadEnable = '1' then
                 TxFifoEmpty <= '1';
+            elsif CurrentState = STATE_CAN_TX_STROBE then
+                TxFifoEmpty <= '0';
             end if;
         end if;
     end process;
@@ -658,6 +645,7 @@ fp.write("""        CurrentState,
         Tpdo2Interrupt,
         Tpdo3Interrupt,
         Tpdo4Interrupt,
+        TxFifoEmpty,
         RxFifoEmpty,
         NmtState_ob,
         TxFifoReadEnable,
@@ -696,26 +684,29 @@ fp.write("""        RxNmtNodeControlCommand
             when STATE_IDLE => -- Wait for interrupt or reception of message from CanLite
                 if CanBus."="(CanStatus.State, CanBus.STATE_RESET) or CanBus."="(CanStatus.State, CanBus.STATE_BUS_OFF) then
                     NextState <= STATE_IDLE;
-                -- Interrupt (to transmit) priority based on CiA 301 function codes
-                elsif SyncProducerInterrupt = '1' and (NmtState_ob = CanOpen.NMT_STATE_PREOPERATIONAL or NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL) then
-                    NextState <= STATE_SYNC;
-                elsif EmcyInterrupt = '1' and (NmtState_ob = CanOpen.NMT_STATE_PREOPERATIONAL or NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL) then
-                    NextState <= STATE_EMCY;
-                elsif Tpdo1Interrupt = '1' then
-                    NextState <= STATE_TPDO1;
-                elsif Tpdo2Interrupt = '1' then
-                    NextState <= STATE_TPDO2;
-                elsif Tpdo3Interrupt = '1' then
-                    NextState <= STATE_TPDO3;
-                elsif Tpdo4Interrupt = '1' then
-                    NextState <= STATE_TPDO4;
-                elsif SdoInterrupt = '1' then
-                    NextState <= STATE_SDO_TX;
-                elsif HeartbeatProducerInterrupt = '1' then
-                    NextState <= STATE_HEARTBEAT;
-                -- Nothing to transmit, check if need to read
                 elsif RxFifoEmpty = '0' then
                     NextState <= STATE_CAN_RX_STROBE;
+                elsif TxFifoEmpty = '1' then
+                    -- Transmit priority based on CiA 301 function codes
+                    if SyncProducerInterrupt = '1' and (NmtState_ob = CanOpen.NMT_STATE_PREOPERATIONAL or NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL) then
+                        NextState <= STATE_SYNC;
+                    elsif EmcyInterrupt = '1' and (NmtState_ob = CanOpen.NMT_STATE_PREOPERATIONAL or NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL) then
+                        NextState <= STATE_EMCY;
+                    elsif Tpdo1Interrupt = '1' then
+                        NextState <= STATE_TPDO1;
+                    elsif Tpdo2Interrupt = '1' then
+                        NextState <= STATE_TPDO2;
+                    elsif Tpdo3Interrupt = '1' then
+                        NextState <= STATE_TPDO3;
+                    elsif Tpdo4Interrupt = '1' then
+                        NextState <= STATE_TPDO4;
+                    elsif SdoInterrupt = '1' then
+                        NextState <= STATE_SDO_TX;
+                    elsif HeartbeatProducerInterrupt = '1' then
+                        NextState <= STATE_HEARTBEAT;
+                    else
+                        NextState <= STATE_IDLE;
+                    end if;
                 else
                     NextState <= STATE_IDLE;
                 end if;
