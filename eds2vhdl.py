@@ -312,23 +312,23 @@ for mux in objects:
 
 template = """{0} {1} is
     generic (
-        CLOCK_FREQUENCY : positive --! Frequency of Clock in Hz
+        CLOCK_FREQUENCY : positive -- Frequency of Clock in Hz
     );
     port (
-        --! Common signals
+        -- Common signals
         Clock       : in  std_logic;
         Reset_n     : in  std_logic;
 
         CanRx       : in std_logic;
         CanTx       : out std_logic;
         CanStatus   : out CanBus.Status;
-        
+
         NodeId          : in std_logic_vector(6 downto 0);
         ErrorRegister   : in unsigned(7 downto 0);
         NmtState        : out std_logic_vector(6 downto 0);
         CommunicationError : out std_logic{2}
 
-        --! Profile-specific signals
+        -- Profile-specific signals
 """
 template += ";\n".join(map(lambda signal: "        " + signal.get("name").ljust(19) + " : " + signal.get("direction") + " " + signal.get("data_type"), port_signals))
 template += """
@@ -336,7 +336,7 @@ template += """
 end {0} {1};"""
 
 fp = open(entity_name + ".vhd", "w")
-fp.write("--! Generated with " + " ".join(argv) + "\n")
+fp.write("-- Generated with " + " ".join(argv) + "\n")
 fp.write("""library ieee;
     use ieee.std_logic_1164.all;
     use ieee.std_logic_misc.all;
@@ -379,59 +379,59 @@ architecture Behavioral of """ + entity_name + """ is
             TRIPLE_SAMPLING             : boolean := true
         );
         port (
-            Clock               : in  std_logic; --! Base clock for CAN timing (24MHz recommended)
-            Reset_n             : in  std_logic; --! Active-low reset
+            Clock               : in  std_logic; -- Base clock for CAN timing (24MHz recommended)
+            Reset_n             : in  std_logic; -- Active-low reset
 
-            CanRx               : in  std_logic; --! RX input from CAN transceiver
-            CanTx               : out std_logic; --! TX output to CAN transceiver
+            CanRx               : in  std_logic; -- RX input from CAN transceiver
+            CanTx               : out std_logic; -- TX output to CAN transceiver
 
-            RxFrame             : out CanBus.Frame; --! To RX FIFO
-            RxFifoWriteEnable   : out std_logic; --! To RX FIFO
-            RxFifoFull          : in  std_logic; --! From RX FIFO
+            RxFrame             : out CanBus.Frame; -- To RX FIFO
+            RxFifoWriteEnable   : out std_logic; -- To RX FIFO
+            RxFifoFull          : in  std_logic; -- From RX FIFO
 
-            TxFrame             : in  CanBus.Frame; --! From TX FIFO
-            TxFifoReadEnable    : out std_logic; --! To TX FIFO
-            TxFifoEmpty         : in std_logic; --! From TX FIFO
-            TxAck               : out std_logic; --! High pulse when a message was successfully transmitted
+            TxFrame             : in  CanBus.Frame; -- From TX FIFO
+            TxFifoReadEnable    : out std_logic; -- To TX FIFO
+            TxFifoEmpty         : in std_logic; -- From TX FIFO
+            TxAck               : out std_logic; -- High pulse when a message was successfully transmitted
 
-            Status              : out CanBus.Status --! See Can_pkg.vhdl
+            Status              : out CanBus.Status -- See Can_pkg.vhdl
         );
     end component CanLite;
 
-    --! Internal signals
+    -- Internal signals
     signal CurrentState,
-           NextState        : State; --! Primary state machine variables
-    signal NodeId_q         : std_logic_vector(6 downto 0); --! Latched node-ID
-    signal NmtState_ob      : std_logic_vector(6 downto 0); --! NMT state output buffer
+           NextState        : State; -- Primary state machine variables
+    signal NodeId_q         : std_logic_vector(6 downto 0); -- Latched node-ID
+    signal NmtState_ob      : std_logic_vector(6 downto 0); -- NMT state output buffer
     signal RxFrame,
            RxFrame_q,
            TxFrame,
            TxFrame_ob,
-           TxFrame_q        : CanBus.Frame; --! CanLite frame interfacing
+           TxFrame_q        : CanBus.Frame; -- CanLite frame interfacing
     signal RxFifoReadEnable,
            RxFifoWriteEnable,
            RxFifoEmpty,
            RxFifoFull,
            TxFifoReadEnable,
            TxFifoWriteEnable,
-           TxFifoEmpty      : std_logic; --! CanLite FIFO interface
+           TxFifoEmpty      : std_logic; -- CanLite FIFO interface
     signal SyncAck,
-           TxAck            : std_logic; --! CanLite successful transmission
-    signal CanStatus_ob     : CanBus.Status; --! CanLite status
+           TxAck            : std_logic; -- CanLite successful transmission
+    signal CanStatus_ob     : CanBus.Status; -- CanLite status
     signal MicrosecondEnable,
-           MillisecondEnable    : std_logic; --! Single-clock pulses
-    signal CommunicationError_ob    : std_logic; --! Bit 4 of Error register
-    signal Sync_ob                  : std_logic; --! Sync pulse output buffer
-    signal HeartbeatConsumerError   : std_logic; --! Heartbeat timeout event has occurred
-    signal EmcyEec          : std_logic_vector(15 downto 0); --! Emergency error code
-    signal EmcyMsef         : std_logic_vector(39 downto 0); --! Manufacturer-specific error code
+           MillisecondEnable    : std_logic; -- Single-clock pulses
+    signal CommunicationError_ob    : std_logic; -- Bit 4 of Error register
+    signal Sync_ob                  : std_logic; -- Sync pulse output buffer
+    signal HeartbeatConsumerError   : std_logic; -- Heartbeat timeout event has occurred
+    signal EmcyEec          : std_logic_vector(15 downto 0); -- Emergency error code
+    signal EmcyMsef         : std_logic_vector(39 downto 0); -- Manufacturer-specific error code
     signal Timestamp_ob     : CanOpen.TimeOfDay;
 """)
 if 0x101900 in objects:
     fp.write("""    signal SynchronousCounter       : unsigned(7 downto 0);
 """)
 fp.write("""
-    --! Internal SDO signals
+    -- Internal SDO signals
     signal RxSdo,
            TxSdo            : std_logic_vector(63 downto 0);
     signal RxSdoInitiateMux : std_logic_vector(23 downto 0);
@@ -448,7 +448,7 @@ if not segmented_sdo:
     signal SegmentedSdoDataValid   : std_logic;
 """)
 fp.write("""
-    --! Aliases for readability
+    -- Aliases for readability
     alias  RxCobIdFunctionCode              : std_logic_vector(3 downto 0) is RxFrame_q.Id(10 downto 7);
     alias  RxCobIdNodeId                    : std_logic_vector(6 downto 0) is RxFrame_q.Id(6 downto 0);
     alias  RxNmtNodeControlCommand          : std_logic_vector(7 downto 0) is RxFrame_q.Data(0);
@@ -492,7 +492,7 @@ fp.write("""
     alias  TxSdoBlockUploadEndN             : std_logic_vector(2 downto 0) is TxSdo(4 downto 2);
     alias  TxSdoBlockUploadEndCrc           : std_logic_vector(15 downto 0) is TxSdo(23 downto 8);
 
-    --! Interrupts
+    -- Interrupts
     signal EmcyInterrupt,
            HeartbeatProducerInterrupt,
            SdoInterrupt,
@@ -511,13 +511,13 @@ fp.write("""
            Tpdo3InterruptEnable,
            Tpdo4InterruptEnable : std_logic;
 
-    --! TPDO SYNC Counters
+    -- TPDO SYNC Counters
     signal Tpdo1SyncCounter,
            Tpdo2SyncCounter,
            Tpdo3SyncCounter,
            Tpdo4SyncCounter     : unsigned(7 downto 0);
 
-    --! Object dictionary indices: Manufacturer-specific profile area
+    -- Object dictionary indices: Manufacturer-specific profile area
 """);
 for odi in od:
     obj = od.get(odi)
@@ -532,7 +532,7 @@ for odi in od:
         fp.write("    constant " + format_constant(obj.get("parametername"), prefix="\\ODI_").ljust(26) + ' : std_logic_vector(23 downto 0) := x"{:04X}00";\n'.format(odi))
 
 fp.write("""
-    --! Object dictionary entries
+    -- Object dictionary entries
 """)
 for mux in objects:
     obj = objects.get(mux)
@@ -562,19 +562,19 @@ begin
             Status => CanStatus_ob
         );
 
-    --! Output signals
-    NmtState <= NmtState_ob; --! Buffered
-    CanStatus <= CanStatus_ob; --! Buffered
-    CommunicationError <= CommunicationError_ob; --! Buffered
+    -- Output signals
+    NmtState <= NmtState_ob; -- Buffered
+    CanStatus <= CanStatus_ob; -- Buffered
+    CommunicationError <= CommunicationError_ob; -- Buffered
 """)
 if args.sync:
-    fp.write("""    Sync <= Sync_ob; --! Buffered
+    fp.write("""    Sync <= Sync_ob; -- Buffered
 """)
 if args.gfc:
     fp.write("""    Gfc <= '1' when CurrentState = STATE_CAN_RX_READ and RxCobIdFunctionCode = CanOpen.FUNCTION_CODE_NMT and RxCobIdNodeId = CanOpen.NMT_GFC else '0';
 """)
 fp.write("""
-    --! Single depth FIFO emulator for CanLite interface
+    -- Single depth FIFO emulator for CanLite interface
     RxFifoReadEnable <= '1' when CurrentState = STATE_CAN_RX_STROBE else '0';
     RxFifoFull <= '0';
     TxFifoWriteEnable <= '1' when CurrentState = STATE_CAN_TX_STROBE else '0';
@@ -631,7 +631,7 @@ fp.write("""
         end if;
     end process;
 
-    --! Primary state machine
+    -- Primary state machine
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -641,7 +641,7 @@ fp.write("""
         end if;
     end process;
 
-    --! Next state in state machine
+    -- Next state in state machine
     process (
 """)
 if 0x120001 in objects:
@@ -675,28 +675,28 @@ fp.write("""        RxNmtNodeControlCommand
     )
     begin
         case CurrentState is
-            when STATE_RESET => --! Power-on reset
+            when STATE_RESET => -- Power-on reset
                 NextState <= STATE_RESET_APP;
-            when STATE_RESET_APP => --! Service reset node
+            when STATE_RESET_APP => -- Service reset node
                     NextState <= STATE_RESET_COMM;
-            when STATE_RESET_COMM => --! Service reset communication
-                if CanBus."/="(CanStatus.State, CanBus.STATE_RESET) and CanBus."/="(CanStatus.State, CanBus.STATE_BUS_OFF) and NodeId /= CanOpen.BROADCAST_NODE_ID then --! Only boot if CAN bus is up and node-ID is valid
+            when STATE_RESET_COMM => -- Service reset communication
+                if CanBus."/="(CanStatus.State, CanBus.STATE_RESET) and CanBus."/="(CanStatus.State, CanBus.STATE_BUS_OFF) and NodeId /= CanOpen.BROADCAST_NODE_ID then -- Only boot if CAN bus is up and node-ID is valid
                     NextState <= STATE_BOOTUP;
                 else
                     NextState <= STATE_RESET_COMM;
                 end if;
-            when STATE_BOOTUP => --! Service boot-up Event
+            when STATE_BOOTUP => -- Service boot-up Event
                 NextState <= STATE_CAN_TX_STROBE;
             when STATE_BOOTUP_WAIT =>
-                if TxAck = '1' then --! Wait until boot-up message has been sent
+                if TxAck = '1' then -- Wait until boot-up message has been sent
                     NextState <= STATE_IDLE;
                 else
                     NextState <= STATE_BOOTUP_WAIT;
                 end if;
-            when STATE_IDLE => --! Wait for interrupt or reception of message from CanLite
+            when STATE_IDLE => -- Wait for interrupt or reception of message from CanLite
                 if CanBus."="(CanStatus.State, CanBus.STATE_RESET) or CanBus."="(CanStatus.State, CanBus.STATE_BUS_OFF) then
                     NextState <= STATE_IDLE;
-                --! Interrupt (to transmit) priority based on CiA 301 function codes
+                -- Interrupt (to transmit) priority based on CiA 301 function codes
                 elsif SyncProducerInterrupt = '1' and (NmtState_ob = CanOpen.NMT_STATE_PREOPERATIONAL or NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL) then
                     NextState <= STATE_SYNC;
                 elsif EmcyInterrupt = '1' and (NmtState_ob = CanOpen.NMT_STATE_PREOPERATIONAL or NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL) then
@@ -713,7 +713,7 @@ fp.write("""        RxNmtNodeControlCommand
                     NextState <= STATE_SDO_TX;
                 elsif HeartbeatProducerInterrupt = '1' then
                     NextState <= STATE_HEARTBEAT;
-                --! Nothing to transmit, check if need to read
+                -- Nothing to transmit, check if need to read
                 elsif RxFifoEmpty = '0' then
                     NextState <= STATE_CAN_RX_STROBE;
                 else
@@ -737,7 +737,7 @@ fp.write("""        RxNmtNodeControlCommand
                 NextState <= STATE_CAN_TX_STROBE;
             when STATE_CAN_TX_STROBE =>
                 NextState <= STATE_CAN_TX_WAIT;
-            when STATE_CAN_TX_WAIT => --! Wait until message has been loaded into CanLite
+            when STATE_CAN_TX_WAIT => -- Wait until message has been loaded into CanLite
                 if NmtState_ob = CanOpen.NMT_STATE_INITIALISATION then
                     NextState <= STATE_BOOTUP_WAIT;
                 elsif TxFifoReadEnable = '1' then
@@ -745,9 +745,9 @@ fp.write("""        RxNmtNodeControlCommand
                 else
                     NextState <= STATE_CAN_TX_WAIT;
                 end if;
-            when STATE_CAN_RX_STROBE => --! Load message from CanLite
+            when STATE_CAN_RX_STROBE => -- Load message from CanLite
                 NextState <= STATE_CAN_RX_READ;
-            when STATE_CAN_RX_READ => --! Process message
+            when STATE_CAN_RX_READ => -- Process message
                 if RxCobIdFunctionCode = CanOpen.FUNCTION_CODE_NMT and RxCobIdNodeId = CanOpen.NMT_NODE_CONTROL and (RxNmtNodeControlNodeId = CanOpen.BROADCAST_NODE_ID or RxNmtNodeControlNodeId = NodeId_q) then
                     if RxNmtNodeControlCommand = CanOpen.NMT_NODE_CONTROL_RESET_APP then
                         NextState <= STATE_RESET_APP;
@@ -759,7 +759,7 @@ fp.write("""        RxNmtNodeControlCommand
 if 0x120001 in objects:
     obj = objects.get(0x120001)
     fp.write("""
-                elsif {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then --! SDO Request, ignore if not 8 data bytes
+                elsif {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then -- SDO Request, ignore if not 8 data bytes
                     NextState <= STATE_SDO_RX;""".format(obj.get("name")))
 fp.write("""
                 else
@@ -772,7 +772,7 @@ fp.write("""
         end case;
     end process;
 
-    --! NMT State determination
+    -- NMT State determination
     process (Clock, Reset_n)
     begin
         if Reset_n = '0' then
@@ -793,7 +793,7 @@ if 0x102901 in objects:
 """.format(objects.get(0x100100).get("name"), objects.get(0x102902).get("name")))
 else:
     fp.write("""            if CommunicationError_ob = '1' and NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL then
-                NmtState_ob <= CanOpen.NMT_STATE_PREOPERATIONAL; --! Default behavior if the Communication error entry (0x01) of the Error behavior object (0x1029) not supported, per CiA 301
+                NmtState_ob <= CanOpen.NMT_STATE_PREOPERATIONAL; -- Default behavior if the Communication error entry (0x01) of the Error behavior object (0x1029) not supported, per CiA 301
 """)
 fp.write("""            else
                 case CurrentState is
@@ -841,7 +841,7 @@ fp.write("""            else
         end if;
     end process;
 
-    --! Latch node-ID
+    -- Latch node-ID
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -853,7 +853,7 @@ fp.write("""            else
         end if;
     end process;
 
-    --! TIME handling""")
+    -- TIME handling""")
 if args.timestamp:
     fp.write("""
     Timestamp <= Timestamp_ob;""")
@@ -887,7 +887,7 @@ fp.write("""if MillisecondEnable = '1' then
 
 if 0x100500 in objects and 0x100600 in objects:
     fp.write("""
-    --! Sync producer timer
+    -- Sync producer timer
     process (Reset_n, Clock)
         variable SyncPending : boolean;
         variable SyncProducerCounter   : unsigned(31 downto 0);
@@ -905,7 +905,7 @@ if 0x100500 in objects and 0x100600 in objects:
                 or {0}(30) = '0'
                 or {1} = 0
                 or CurrentState = STATE_RESET_COMM
-                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1006" and TxSdoInitiateMuxSubIndex = x"00") --! Successful SDO Download
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1006" and TxSdoInitiateMuxSubIndex = x"00") -- Successful SDO Download
             ) then
                 SyncProducerCounter := (others => '0');
             elsif MicrosecondEnable = '1' then
@@ -941,7 +941,7 @@ if 0x100500 in objects and 0x100600 in objects:
                 NmtState_ob = CanOpen.NMT_STATE_INITIALISATION
                 or NmtState_ob = CanOpen.NMT_STATE_STOPPED
                 or CurrentState = STATE_RESET_COMM
-                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1019" and TxSdoInitiateMuxSubIndex = x"00") --! Successful SDO Download
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1019" and TxSdoInitiateMuxSubIndex = x"00") -- Successful SDO Download
                 or {0} < 2 or {0} > 240
             ) then
                 SynchronousCounter <= to_unsigned(1, SynchronousCounter'length);
@@ -963,7 +963,7 @@ else:
 """)
 
 fp.write("""
-    --! EMCY interrupt handling
+    -- EMCY interrupt handling
     process (Reset_n, Clock)
         variable ErrorRegisterInterrupts    : std_logic_vector(7 downto 0);
         variable ErrorRegister_q            : unsigned(7 downto 0);
@@ -1013,11 +1013,11 @@ fp.write("""            if EmcyInterrupt = '0' and (or_reduce(ErrorRegisterInter
             ErrorRegister_q := {0};
         end if;
     end process;
-    EmcyMsef <= (others => '0'); --! Manufacturer-specific error code not implemented
+    EmcyMsef <= (others => '0'); -- Manufacturer-specific error code not implemented
 """.format(objects.get(0x100100).get("name")))
 
 fp.write("""
-     --! Timers
+     -- Timers
     process (Reset_n, Clock)
         variable MicrosecondCounter         : natural range 0 to (CLOCK_FREQUENCY / 1000000);
         variable MillisecondCounter         : natural range 0 to 1000;
@@ -1053,7 +1053,7 @@ fp.write("""
 # TODO: Support multiple heartbeat consumers (if so, should check for duplicate node-IDs in VHDL)
 if 0x101601 in objects:
     fp.write("""
-    --! Heartbeat consumer timer
+    -- Heartbeat consumer timer
     process (
         Reset_n,
         Clock,
@@ -1071,7 +1071,7 @@ if 0x101601 in objects:
     begin
         if CurrentState = STATE_CAN_RX_READ and RxCobIdFunctionCode = CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL and unsigned(RxCobIdNodeId(6 downto 0)) = {0}(22 downto 16) then
             HeartbeatConsumerReset := '1';
-        elsif CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1016" and TxSdoInitiateMuxSubIndex = x"01" then --! Successful SDO Download
+        elsif CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1016" and TxSdoInitiateMuxSubIndex = x"01" then -- Successful SDO Download
             HeartbeatConsumerReset := '1';
         else
             HeartbeatConsumerReset := '0';
@@ -1081,9 +1081,9 @@ if 0x101601 in objects:
             HeartbeatConsumerEnable := '0';
             HeartbeatConsumerError <= '0';
         elsif rising_edge(Clock) then
-            if {0}(23 downto 16) = 0 or {0}(23 downto 16) > 127 or {0}(15 downto 0) = 0 then --! Check if entry is valid
+            if {0}(23 downto 16) = 0 or {0}(23 downto 16) > 127 or {0}(15 downto 0) = 0 then -- Check if entry is valid
                 HeartbeatConsumerEnable := '0';
-            elsif HeartbeatConsumerReset = '1' then --! Enable heartbeat consumer after first heartbeat is received
+            elsif HeartbeatConsumerReset = '1' then -- Enable heartbeat consumer after first heartbeat is received
                 HeartbeatConsumerEnable := '1';
             end if;
             if HeartbeatConsumerEnable = '0' or HeartbeatConsumerReset = '1' then
@@ -1106,7 +1106,7 @@ else:
 
 if 0x101700 in objects:
     fp.write("""
-    --! Heartbeat producer timer
+    -- Heartbeat producer timer
     process (Reset_n, Clock)
         variable HeartbeatProducerCounter   : natural range 0 to 65535;
         variable HeartbeatConsumerReset     : std_logic;
@@ -1119,7 +1119,7 @@ if 0x101700 in objects:
                 NmtState_ob = CanOpen.NMT_STATE_INITIALISATION
                 or {0} = 0
                 or CurrentState = STATE_RESET_COMM
-                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1017" and TxSdoInitiateMuxSubIndex = x"00") --! Successful SDO Download
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1017" and TxSdoInitiateMuxSubIndex = x"00") -- Successful SDO Download
             ) then
                 HeartbeatProducerCounter := 0;
             elsif MillisecondEnable = '1' then
@@ -1143,12 +1143,12 @@ else:
 """)
 
 fp.write("""
-    --! TPDO
-    TpdoInterruptEnable <= '1' when NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL else '0'; --! "Global" TPDO interrupt enable\n""")
+    -- TPDO
+    TpdoInterruptEnable <= '1' when NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL else '0'; -- "Global" TPDO interrupt enable\n""")
 
 for i in range(4):
     fp.write("""
-    --! TPDO{0} interrupt
+    -- TPDO{0} interrupt
 """.format(i + 1))
     cob_id_mux = ((0x1800 + i) << 8) + 0x01
     xtype_mux = ((0x1800 + i) << 8) + 0x02
@@ -1200,7 +1200,7 @@ for i in range(4):
 """.format(i + 1, cob_id.get("name"), xtype.get("name")))
 
 fp.write("""
-    --! TPDO mappings
+    -- TPDO mappings
 """)
 # TODO: Rewrite this section to use "objects" instead of "od"
 tpdo_lengths = []
@@ -1241,7 +1241,7 @@ for i in range(4):
     tpdo_lengths.append(tpdo_length)
 
 fp.write("""
-    --! Load CAN TX frame
+    -- Load CAN TX frame
     process (Clock, Reset_n)
     begin
         if Reset_n = '0' then
@@ -1254,7 +1254,7 @@ fp.write("""
             );
         elsif rising_edge(Clock) then
             TxFrame.Id(28 downto 11) <= (others => '0');
-            TxFrame.Rtr <= '0'; --! Need to set these, otherwise latch is inferred
+            TxFrame.Rtr <= '0'; -- Need to set these, otherwise latch is inferred
             TxFrame.Ide <= '0';
             if CurrentState = STATE_BOOTUP then
                 TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL & NodeId_q;
@@ -1338,7 +1338,7 @@ fp.write("""            elsif CurrentState = STATE_HEARTBEAT then
 """)
 
 fp.write("""
-    --! Save SDO request
+    -- Save SDO request
 """)
 if 0x120001 in objects:
     obj = objects.get(0x120001)
@@ -1347,7 +1347,7 @@ if 0x120001 in objects:
         if Reset_n = '0' then
             RxSdo <= (others => '0');
         elsif rising_edge(Clock) then
-            if CurrentState = STATE_CAN_RX_READ and {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then --! SDO Request, ignore if not 8 data bytes
+            if CurrentState = STATE_CAN_RX_READ and {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then -- SDO Request, ignore if not 8 data bytes
                 RxSdo <= RxFrame_q.Data(7) & RxFrame_q.Data(6) & RxFrame_q.Data(5) & RxFrame_q.Data(4) & RxFrame_q.Data(3) & RxFrame_q.Data(2) & RxFrame_q.Data(1) & RxFrame_q.Data(0);
             end if;
         end if;
@@ -1359,22 +1359,22 @@ else:
 
 if 0x120001 in objects:
     fp.write("""
-    --! SDO
+    -- SDO
     RxSdoInitiateMux <= RxSdoInitiateMuxIndex & RxSdoInitiateMuxSubIndex;
     process (Clock, Reset_n, SegmentedSdoData, SegmentedSdoDataValid)
         variable SegmentedSdoReadBytes : unsigned(31 downto 0);
-        variable SdoActive          : boolean; --! In non-expedited transaction
+        variable SdoActive          : boolean; -- In non-expedited transaction
         variable SdoBlockCrc        : std_logic_vector(15 downto 0);
-        variable SdoBlockMode       : boolean; --! Sending sub-blocks
-        variable SdoBlockSize       : unsigned(6 downto 0); --! From client
+        variable SdoBlockMode       : boolean; -- Sending sub-blocks
+        variable SdoBlockSize       : unsigned(6 downto 0); -- From client
         variable SdoExternal        : boolean;
-        variable SdoMux             : std_logic_vector(23 downto 0); --! Upload request mux
-        variable SdoPending         : boolean; --! Waiting for SegmentedSdoDataValid
+        variable SdoMux             : std_logic_vector(23 downto 0); -- Upload request mux
+        variable SdoPending         : boolean; -- Waiting for SegmentedSdoDataValid
         variable SdoSegData         : std_logic_vector(55 downto 0);
         variable SdoSegDataInternal : std_logic_vector(55 downto 0);
         variable SdoSegDataValid    : std_logic;
         variable SdoSequenceNumber  : unsigned(6 downto 0);
-        variable SdoToggle          : std_logic; --! Toggle bit for segmented transfer
+        variable SdoToggle          : std_logic; -- Toggle bit for segmented transfer
     begin
         if SdoExternal then
             SdoSegData := SegmentedSdoData;
@@ -1400,10 +1400,10 @@ if 0x120001 in objects:
             SdoToggle := '0';
         elsif rising_edge(Clock) then
             if CurrentState = STATE_CAN_RX_READ then
-                if {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then --! Next state is STATE_SDO_TX
+                if {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then -- Next state is STATE_SDO_TX
                     if RxFrame_q.Data(0)(7 downto 5) = CanOpen.SDO_CCS_IUR or (RxFrame_q.Data(0)(7 downto 5) = CanOpen.SDO_CCS_BUR and RxFrame_q.Data(0)(1 downto 0) = CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE) then
                         SdoMux := RxFrame_q.Data(2) & RxFrame_q.Data(1) & RxFrame_q.Data(3);
-                        SdoExternal := true; --! Note: this will be deasserted in STATE_CAN_RX if not internal mux is used
+                        SdoExternal := true; -- Note: this will be deasserted in STATE_CAN_RX if not internal mux is used
                     end if;
                 end if;
             elsif CurrentState = STATE_SDO_RX then
@@ -1568,7 +1568,7 @@ if 0x120001 in objects:
                             TxSdo(4 downto 0) <= (others => '0');
                             TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
                             TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
-                            TxSdoAbortCode <= CanOpen.SDO_ABORT_CS; --! Unexpected subcommand
+                            TxSdoAbortCode <= CanOpen.SDO_ABORT_CS; -- Unexpected subcommand
                             SdoExternal := false;
                             SegmentedSdoReadDataEnable <= '0';
                             SdoActive := false;
@@ -1620,8 +1620,8 @@ if 0x120001 in objects:
                                         else
                                             TxSdoCs <= CanOpen.SDO_SCS_BUR;
                                             TxSdo(4 downto 3) <= (others => '0');
-                                            TxSdoBlockUploadInitiateSc <= '1'; --! Server CRC support
-                                            TxSdoBlockUploadInitiateS <= '1'; --! Size indicator
+                                            TxSdoBlockUploadInitiateSc <= '1'; -- Server CRC support
+                                            TxSdoBlockUploadInitiateS <= '1'; -- Size indicator
                                             TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE(0);
                                             TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
                                             TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
@@ -1654,8 +1654,8 @@ if 0x120001 in objects:
                                         else
                                             TxSdoCs <= CanOpen.SDO_SCS_BUR;
                                             TxSdo(4 downto 3) <= (others => '0');
-                                            TxSdoBlockUploadInitiateSc <= '1'; --! Server CRC support
-                                            TxSdoBlockUploadInitiateS <= '1'; --! Size indicator
+                                            TxSdoBlockUploadInitiateSc <= '1'; -- Server CRC support
+                                            TxSdoBlockUploadInitiateS <= '1'; -- Size indicator
                                             TxSdoBlockUploadSs <= CanOpen.SDO_BLOCK_SUBCOMMAND_INITIATE(0);
                                             TxSdoBlockUploadInitiateSize <= x"{2:08X}";
                                             SegmentedSdoReadBytes := x"{2:08X}";
@@ -1676,18 +1676,18 @@ if 0x120001 in objects:
                                         SegmentedSdoReadDataEnable <= '0';
                                         SdoActive := false;
                                         SdoBlockMode := false;
-                                        SdoPending := false;                                
+                                        SdoPending := false;
                                 end case;
                             end if;
                         end if;
                         SdoInterrupt <= '1';
                     elsif SdoActive then
                         if RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_START then
-                            SdoBlockCrc := (others => '0'); --! Initialize CRC
+                            SdoBlockCrc := (others => '0'); -- Initialize CRC
                             SdoBlockMode := true;
                             SdoPending := true;
                         elsif RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_RESPONSE then
-                            if unsigned(RxSdoBlockUploadSubBlockAckseq(6 downto 0)) /= SdoSequenceNumber then --! ackseq check
+                            if unsigned(RxSdoBlockUploadSubBlockAckseq(6 downto 0)) /= SdoSequenceNumber then -- ackseq check
                                 TxSdoCs <= CanOpen.SDO_CS_ABORT;
                                 TxSdo(4 downto 0) <= (others => '0');
                                 TxSdoInitiateMuxIndex <= SdoMux(23 downto 8);
@@ -1699,7 +1699,7 @@ if 0x120001 in objects:
                                 SdoActive := false;
                                 SdoBlockMode := false;
                                 SdoPending := false;
-                            elsif TxSdoBlockUploadSubBlockC = '1' then --! Complete
+                            elsif TxSdoBlockUploadSubBlockC = '1' then -- Complete
                                 TxSdoCs <= CanOpen.SDO_SCS_BUR;
                                 TxSdoBlockUploadEndN <= std_logic_vector(resize(7 - SegmentedSdoReadBytes, 3));
                                 TxSdo(1) <= CanOpen.SDO_BLOCK_SUBCOMMAND_END(1);
@@ -1729,12 +1729,12 @@ if 0x120001 in objects:
                         elsif RxSdoBlockUploadCs = CanOpen.SDO_BLOCK_SUBCOMMAND_END then
                             SdoActive := false;
                         end if;
-                    else --! SDO Block Upload was not initialized
+                    else -- SDO Block Upload was not initialized
                         TxSdoCs <= CanOpen.SDO_CS_ABORT;
                         TxSdo(4 downto 0) <= (others => '0');
                         TxSdoInitiateMuxIndex <= (others => '0');
                         TxSdoInitiateMuxSubIndex <= (others => '0');
-                        TxSdoAbortCode <= CanOpen.SDO_ABORT_CS; --! Unexpected subcommand
+                        TxSdoAbortCode <= CanOpen.SDO_ABORT_CS; -- Unexpected subcommand
                         SdoExternal := false;
                         SegmentedSdoReadDataEnable <= '0';
                         SdoInterrupt <= '1';
@@ -1822,7 +1822,7 @@ else:
 """)
 
 fp.write("""
-    --! Object dictionary communication profile area assignments
+    -- Object dictionary communication profile area assignments
 """)
 if 0x100500 in objects:
     fp.write("    Sync_ob <= '1' when SyncAck = '1' or (CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = " + objects.get(0x100500).get("name") + "(29) and unsigned(RxFrame_q.Id(10 downto 0)) = " + objects.get(0x100500).get("name") + "(10 downto 0)) else '0';\n")
@@ -1840,7 +1840,7 @@ for mux in objects:
     {0}(3) <= ErrorRegister(3);
     {0}(4) <= CommunicationError_ob;
     {0}(5) <= ErrorRegister(5);
-    {0}(6) <= '0'; --! reserved (always 0)
+    {0}(6) <= '0'; -- reserved (always 0)
     {0}(7) <= ErrorRegister(7);
 """.format(objects.get(0x100100).get("name")))
         continue;
@@ -1870,7 +1870,7 @@ for mux in objects:
         fp.write("    " + obj.get("name") + " <= " + obj.get("default_value") + ";\n")
 
 fp.write("""
-    --! Remaining object dictionary assignments
+    -- Remaining object dictionary assignments
 """)
 for mux in objects:
     if mux < 0x200000: continue
@@ -1920,7 +1920,7 @@ for mux in objects:
         end if;
     end process;
 """.format(obj.get("name"), obj.get("default_value"), format_signal(obj.get("parameter_name"), suffix="_strb\\"), mux >> 8, mux & 0xFF, assignment))
-fp.write("""    --! Output port assignments from buffers)
+fp.write("""    -- Output port assignments from buffers)
 """)
 for mux in objects:
     if mux < 0x200000: continue
@@ -1932,10 +1932,10 @@ fp.write("""
 end Behavioral;
 """)
 fp.write("""
---! Component declaration template
+-- Component declaration template
 --    """ + "\n--    ".join(template.format("component", entity_name, "" if len(port_signals) == 0 else ";").split("\n")))
 fp.write("\n\n")
-fp.write("""--! Component instantiation template
+fp.write("""-- Component instantiation template
 --    CanOpenController : """ + entity_name + """
 --        generic map (
 --            CLOCK_FREQUENCY => CLOCK_FREQUENCY
@@ -1947,8 +1947,8 @@ fp.write("""--! Component instantiation template
 --            CanTx => CanTx,
 --            CanStatus => CanStatus,
 --            NodeId => NodeId,
---            ErrorRegister => ErrorRegister, --! Bits 5 and 6 are ignored
+--            ErrorRegister => ErrorRegister, -- Bits 5 and 6 are ignored
 --            NmtState => NmtState,
---            CommunicationError => CommunicationError, --! Bit 5 of CANopen Error Register
+--            CommunicationError => CommunicationError, -- Bit 5 of CANopen Error Register
 --""" + ",\n--".join(map(lambda signal: "            {0} => {0}".format(signal.get("name")), port_signals)) + """
 --        );""")
