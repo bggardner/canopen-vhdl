@@ -40,6 +40,7 @@ Data type lengths of 0 (undefined) and greater than 32 support "ro" access via S
 | 0x1016  | Consumer heartbeat time     | one consumer only |
 | 0x1017  | Producer heartbeat time     | |
 | 0x1018  | Identity object             | |
+| 0x1019  | Synchronous counter overflow value | |
 | 0x1021  | Store EDS                   | Uses Segmented SDO interface |
 | 0x1022  | Store format                | |
 | 0x1029  | Error behavior              | sub-indices 0x00-0x02 only, error class values 0x00-0x02 only |

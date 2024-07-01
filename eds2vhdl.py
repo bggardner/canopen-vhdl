@@ -402,7 +402,7 @@ architecture Behavioral of """ + entity_name + """ is
     signal CurrentState,
            NextState        : State; --! Primary state machine variables
     signal NodeId_q         : std_logic_vector(6 downto 0); --! Latched node-ID
-    signal NmtState_ob       : std_logic_vector(6 downto 0); --! NMT state output buffer
+    signal NmtState_ob      : std_logic_vector(6 downto 0); --! NMT state output buffer
     signal RxFrame,
            RxFrame_q,
            TxFrame,
@@ -426,7 +426,11 @@ architecture Behavioral of """ + entity_name + """ is
     signal EmcyEec          : std_logic_vector(15 downto 0); --! Emergency error code
     signal EmcyMsef         : std_logic_vector(39 downto 0); --! Manufacturer-specific error code
     signal Timestamp_ob     : CanOpen.TimeOfDay;
-
+""")
+if 0x101900 in objects:
+    fp.write("""    signal SynchronousCounter       : unsigned(7 downto 0);
+""")
+fp.write("""
     --! Internal SDO signals
     signal RxSdo,
            TxSdo            : std_logic_vector(63 downto 0);
@@ -925,6 +929,34 @@ if 0x100500 in objects and 0x100600 in objects:
         end if;
     end process;
 """.format(objects.get(0x100500).get("name"), objects.get(0x100600).get("name")))
+
+    if 0x101900 in objects:
+        fp.write("""
+    process (Reset_n, Clock)
+    begin
+        if Reset_n = '0' then
+            SynchronousCounter <= to_unsigned(1, SynchronousCounter'length);
+        elsif rising_edge(Clock) then
+            if (
+                NmtState_ob = CanOpen.NMT_STATE_INITIALISATION
+                or NmtState_ob = CanOpen.NMT_STATE_STOPPED
+                or CurrentState = STATE_RESET_COMM
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1019" and TxSdoInitiateMuxSubIndex = x"00") --! Successful SDO Download
+                or {0} < 2 or {0} > 240
+            ) then
+                SynchronousCounter <= to_unsigned(1, SynchronousCounter'length);
+            elsif SyncAck = '1' then
+                 if SynchronousCounter = {0} then
+                     SynchronousCounter <= to_unsigned(1, SynchronousCounter'length);
+                 else
+                     SynchronousCounter <= SynchronousCounter + 1;
+                 end if;
+            end if;
+        end if;
+    end process;
+""".format(objects.get(0x101900).get("name")))
+
+
 else:
     fp.write("""
     SyncProducerInterrupt <= '0';
@@ -1234,8 +1266,19 @@ if 0x100500 in objects:
     fp.write("""
             elsif CurrentState = STATE_SYNC then
                 TxFrame.Id(10 downto 0) <= std_logic_vector(""" + objects.get(0x100500).get("name") + """(10 downto 0));
-                TxFrame.Dlc <= b"0000";
-                TxFrame.Data <= (others => (others => '0'));
+""")
+    if 0x101900 in objects:
+        fp.write("""
+                if {0} < 2 or {0} > 240 then
+                    TxFrame.Dlc <= b"0000";
+                    TxFrame.Data(0) <= (others => '0');
+                else
+                    TxFrame.Dlc <= b"0001";
+                    TxFrame.Data(0) <= std_logic_vector(SynchronousCounter);
+                end if;
+""".format(objects.get(0x101900).get("name")))
+    fp.write("""
+                TxFrame.Data(7 downto 1) <= (others => (others => '0'));
 """)
 
 if 0x101400 in objects:
