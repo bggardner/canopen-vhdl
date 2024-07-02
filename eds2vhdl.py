@@ -417,6 +417,7 @@ architecture Behavioral of """ + entity_name + """ is
            TxAck            : std_logic; -- CanLite successful transmission
     signal CanStatus_ob     : CanBus.Status; -- CanLite status
     signal MicrosecondEnable,
+           HundredMicrosecondEnable,
            MillisecondEnable    : std_logic; -- Single-clock pulses
     signal CommunicationError_ob    : std_logic; -- Bit 4 of Error register
     signal Sync_ob                  : std_logic; -- Sync pulse output buffer
@@ -1015,12 +1016,15 @@ fp.write("""            if EmcyInterrupt = '0' and (or_reduce(ErrorRegisterInter
 fp.write("""
      -- Timers
     process (Reset_n, Clock)
-        variable MicrosecondCounter         : natural range 0 to (CLOCK_FREQUENCY / 1000000);
-        variable MillisecondCounter         : natural range 0 to 1000;
+        variable MicrosecondCounter         : natural range 0 to (CLOCK_FREQUENCY / 1000000) - 1;
+        variable HundredMicrosecondCounter  : natural range 0 to 99;
+        variable MillisecondCounter         : natural range 0 to 9;
     begin
         if Reset_n = '0' then
             MicrosecondCounter := 0;
             MicrosecondEnable <= '0';
+            HundredMicrosecondCounter := 0;
+            HundredMicrosecondEnable <= '0';
             MillisecondCounter := 0;
             MillisecondEnable <= '0';
         elsif rising_edge(Clock) then
@@ -1032,7 +1036,18 @@ fp.write("""
                 MicrosecondEnable <= '0';
             end if;
             if MicrosecondEnable = '1' then
-                if MillisecondCounter = 999 then
+                if HundredMicrosecondCounter = 99 then
+                    HundredMicrosecondCounter := 0;
+                    HundredMicrosecondEnable <= '1';
+                else
+                    HundredMicrosecondCounter := HundredMicrosecondCounter + 1;
+                    HundredMicrosecondEnable <= '0';
+                end if;
+            else
+                HundredMicrosecondEnable <= '0';
+            end if;
+            if HundredMicrosecondEnable = '1' then
+                if MillisecondCounter = 9 then
                     MillisecondCounter := 0;
                     MillisecondEnable <= '1';
                 else
@@ -1200,36 +1215,80 @@ for i in range(4):
         else '0';
     process (Reset_n, Clock)
         variable EventTimer : natural range 0 to 65535;
+        variable InhibitTimer : natural range 0 to 65535;
     begin
         if Reset_n = '0' then
             EventTimer := 0;
+            InhibitTimer := 0;
             Tpdo{0}EventInterrupt <= '0';
             Tpdo{0}Interrupt <= '0';
             Tpdo{0}RtrInterrupt <= '0';
             Tpdo{0}SyncCounter <= (others => '0');
         elsif rising_edge(Clock) then
-""".format(i + 1, None, xtype.get("name")))
-    if xtype_mux in objects and event_timer_mux in objects:
-        event_timer = objects.get(event_timer_mux)
-        fp.write("""            if CurrentState = STATE_TPDO{0} then
+            if CurrentState = STATE_TPDO{0} then
                 Tpdo{0}EventInterrupt <= '0';
-            elsif Tpdo{0}Event = '1' or ({1} >= x"FE" and {2} > 0 and EventTimer = {2}) then
+""".format(i + 1, None, xtype.get("name")))
+    if xtype_mux in objects:
+        if inhibit_time_mux in objects and event_timer_mux in objects:
+            inhibit_time = objects.get(inhibit_time_mux)
+            event_timer = objects.get(event_timer_mux)
+            fp.write("""            elsif InhibitTimer = {2} and (Tpdo{0}Event = '1' or ({1} >= x"FE" and {3} > 0 and EventTimer = {3})) then
                 Tpdo{0}EventInterrupt <= '1';
             end if;
-            if Tpdo{0}Event = '1' or {1} = 0 or CurrentState = STATE_TPDO{0} or EventTimer = {2} then
+            if
+                Tpdo{0}Event = '1'
+                or CurrentState = STATE_TPDO{0}
+                or {1} = 0 -- Event timer disabled
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1800" and TxSdoInitiateMuxSubIndex = x"05") -- Successful SDO Download
+            then
                 EventTimer := 0;
-            elsif MillisecondEnable = '1' then
+            elsif EventTimer < {3} and MillisecondEnable = '1' then
                 EventTimer := EventTimer + 1;
             end if;
-""".format(i + 1, xtype.get("name"), event_timer.get("name")))
-    else:
-        fp.write("""            if CurrentState = STATE_TPDO{0} then
-                Tpdo{0}EventInterrupt <= '0';
-            elsif Tpdo{0}Event = '1' then
+            if
+                CurrentState = STATE_TPDO{0}
+                or {2} = 0 -- Inhibit time disabled
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1800" and TxSdoInitiateMuxSubIndex = x"03") -- Successful SDO Download
+            then
+                InhibitTimer := 0;
+            elsif InhibitTimer < {2} and HundredMicrosecondEnable = '1' then
+                InhibitTimer := InhibitTimer + 1;
+""".format(i + 1, xtype.get("name"), inhibit_time.get("name"), event_timer.get("name")))
+        elif inhibit_time_mux in objects:
+            inhibit_time = objects.get(inhibit_time_mux)
+            fp.write("""            elsif InhibitTimer = {2} and Tpdo{0}Event = '1' and {1} >= x"FE" then
                 Tpdo{0}EventInterrupt <= '1';
             end if;
+            if
+                CurrentState = STATE_TPDO{0}
+                or {2} = 0 -- Inhibit time disabled
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1800" and TxSdoInitiateMuxSubIndex = x"03") -- Successful SDO Download
+            then
+                InhibitTimer := 0;
+            elsif InhibitTimer < {2} and HundredMicrosecondEnable = '1' then
+                InhibitTimer := InhibitTimer + 1;
+""".format(i + 1, xtype.get("name"), inhibit_time.get("name")))
+        elif event_timer_mux in objects:
+            event_timer = objects.get(event_timer_mux)
+            fp.write("""            elsif Tpdo{0}Event = '1' or ({1} >= x"FE" and {2} > 0 and EventTimer = {2}) then
+                Tpdo{0}EventInterrupt <= '1';
+            end if;
+            if
+                Tpdo{0}Event = '1'
+                or CurrentState = STATE_TPDO{0}
+                or {1} = 0 -- Event timer disabled
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1800" and TxSdoInitiateMuxSubIndex = x"05") -- Successful SDO Download
+            then
+                EventTimer := 0;
+            elsif EventTimer < {2} and MillisecondEnable = '1' then
+                EventTimer := EventTimer + 1;
+""".format(i + 1, xtype.get("name"), event_timer.get("name")))
+        else:
+            fp.write("""            elsif Tpdo{0}Event = '1' then
+                Tpdo{0}EventInterrupt <= '1';
 """.format(i + 1))
-    fp.write("""            if CurrentState = STATE_TPDO{0} then
+    fp.write("""            end if;
+            if CurrentState = STATE_TPDO{0} then
                 Tpdo{0}Interrupt <= '0';
             elsif Tpdo{0}InterruptEnable = '1' then
                 Tpdo{0}Interrupt <= '1';
