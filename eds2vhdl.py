@@ -495,10 +495,10 @@ fp.write("""
            HeartbeatProducerInterrupt,
            SdoInterrupt,
            SyncProducerInterrupt,
-           Tpdo1Event_q,
-           Tpdo2Event_q,
-           Tpdo3Event_q,
-           Tpdo4Event_q,
+           Tpdo1EventInterrupt,
+           Tpdo2EventInterrupt,
+           Tpdo3EventInterrupt,
+           Tpdo4EventInterrupt,
            Tpdo1Interrupt,
            Tpdo2Interrupt,
            Tpdo3Interrupt,
@@ -513,7 +513,7 @@ fp.write("""
            Tpdo3RtrInterrupt,
            Tpdo4RtrInterrupt : std_logic;
 
-    -- TPDO SYNC Counters
+    -- TPDO Counters / Timers
     signal Tpdo1SyncCounter,
            Tpdo2SyncCounter,
            Tpdo3SyncCounter,
@@ -1146,9 +1146,12 @@ for i in range(4):
     fp.write("""
     -- TPDO{0} interrupt
 """.format(i + 1))
-    cob_id_mux = ((0x1800 + i) << 8) + 0x01
-    xtype_mux = ((0x1800 + i) << 8) + 0x02
-    sync_start_mux = ((0x1800 + i) << 8) + 0x06
+    mux = (0x1800 + i) << 8
+    cob_id_mux = mux + 0x01
+    xtype_mux = mux + 0x02
+    inhibit_time_mux = mux + 0x03
+    event_timer_mux = mux + 0x05
+    sync_start_mux = mux + 0x06
     if cob_id_mux not in objects or xtype_mux not in objects:
         fp.write("""    Tpdo{0}Event <= '0';
     Tpdo{0}InterruptEnable <= '0';
@@ -1165,7 +1168,7 @@ for i in range(4):
                 ({1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) = {1}(28 downto 0) and RxFrame_q.Rtr = '1') -- RTR
                 or (
                     Sync_ob = '1' and ( -- Synchronous
-                        ({2} = 0 and Tpdo{0}Event_q = '1')
+                        ({2} = 0 and Tpdo{0}EventInterrupt = '1')
                         or ({2} = x"FC" and Tpdo{0}RtrInterrupt = '1')
 """.format(i + 1, cob_id.get("name"), xtype.get("name")))
     if sync_start_mux in objects:
@@ -1188,7 +1191,7 @@ for i in range(4):
     fp.write("""                    )
                 )
                 or (
-                    Tpdo{0}Event = '1' and ( -- Asynchronous (event-driven)
+                    Tpdo{0}EventInterrupt = '1' and ( -- Asynchronous (event-driven)
                         ({2} = x"FD" and Tpdo{0}RtrInterrupt = '1')
                         or {2} >= x"FE"
                     )
@@ -1196,27 +1199,45 @@ for i in range(4):
             )
         else '0';
     process (Reset_n, Clock)
+        variable EventTimer : natural range 0 to 65535;
     begin
         if Reset_n = '0' then
-            Tpdo{0}Event_q <= '0';
+            EventTimer := 0;
+            Tpdo{0}EventInterrupt <= '0';
             Tpdo{0}Interrupt <= '0';
             Tpdo{0}RtrInterrupt <= '0';
             Tpdo{0}SyncCounter <= (others => '0');
         elsif rising_edge(Clock) then
-            if Tpdo{0}Event = '1' then
-                Tpdo{0}Event_q <= '1';
-            elsif CurrentState = STATE_TPDO{0} then
-                Tpdo{0}Event_q <= '0';
+""".format(i + 1, None, xtype.get("name")))
+    if xtype_mux in objects and event_timer_mux in objects:
+        event_timer = objects.get(event_timer_mux)
+        fp.write("""            if CurrentState = STATE_TPDO{0} then
+                Tpdo{0}EventInterrupt <= '0';
+            elsif Tpdo{0}Event = '1' or ({1} >= x"FE" and {2} > 0 and EventTimer = {2}) then
+                Tpdo{0}EventInterrupt <= '1';
             end if;
-            if Tpdo{0}InterruptEnable = '1' then
-                Tpdo{0}Interrupt <= '1';
-            elsif CurrentState = STATE_TPDO{0} then
+            if Tpdo{0}Event = '1' or {1} = 0 or CurrentState = STATE_TPDO{0} or EventTimer = {2} then
+                EventTimer := 0;
+            elsif MillisecondEnable = '1' then
+                EventTimer := EventTimer + 1;
+            end if;
+""".format(i + 1, xtype.get("name"), event_timer.get("name")))
+    else:
+        fp.write("""            if CurrentState = STATE_TPDO{0} then
+                Tpdo{0}EventInterrupt <= '0';
+            elsif Tpdo{0}Event = '1' then
+                Tpdo{0}EventInterrupt <= '1';
+            end if;
+""".format(i + 1))
+    fp.write("""            if CurrentState = STATE_TPDO{0} then
                 Tpdo{0}Interrupt <= '0';
+            elsif Tpdo{0}InterruptEnable = '1' then
+                Tpdo{0}Interrupt <= '1';
             end if;
-            if {1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) = {1}(28 downto 0) and RxFrame_q.Rtr = '1' then
-                Tpdo{0}RtrInterrupt <= '1';
-            elsif CurrentState = STATE_TPDO{0} then
+            if CurrentState = STATE_TPDO{0} then
                 Tpdo{0}RtrInterrupt <= '0';
+            elsif {1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) = {1}(28 downto 0) and RxFrame_q.Rtr = '1' then
+                Tpdo{0}RtrInterrupt <= '1';
             end if;
             if Sync_ob = '1' then
                 if CurrentState = STATE_RESET_COMM then
