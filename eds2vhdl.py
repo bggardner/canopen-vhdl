@@ -507,7 +507,11 @@ fp.write("""
            Tpdo1InterruptEnable,
            Tpdo2InterruptEnable,
            Tpdo3InterruptEnable,
-           Tpdo4InterruptEnable : std_logic;
+           Tpdo4InterruptEnable,
+           Tpdo1RtrInterrupt,
+           Tpdo2RtrInterrupt,
+           Tpdo3RtrInterrupt,
+           Tpdo4RtrInterrupt : std_logic;
 
     -- TPDO SYNC Counters
     signal Tpdo1SyncCounter,
@@ -923,6 +927,7 @@ if 0x100500 in objects and 0x100600 in objects:
 
     if 0x101900 in objects:
         fp.write("""
+    -- NOTE: CiA 301 requires an SDO abort to a change of 0x1019 if 0x1006 is not zero (TODO). Instead, a change will reset the counter to zero.
     process (Reset_n, Clock)
     begin
         if Reset_n = '0' then
@@ -1143,10 +1148,12 @@ for i in range(4):
 """.format(i + 1))
     cob_id_mux = ((0x1800 + i) << 8) + 0x01
     xtype_mux = ((0x1800 + i) << 8) + 0x02
+    sync_start_mux = ((0x1800 + i) << 8) + 0x06
     if cob_id_mux not in objects or xtype_mux not in objects:
         fp.write("""    Tpdo{0}Event <= '0';
     Tpdo{0}InterruptEnable <= '0';
     Tpdo{0}Interrupt <= '0';
+    Tpdo{0}RtrInterrupt <= '0';
 """.format(i + 1))
         continue
     cob_id = objects.get(cob_id_mux)
@@ -1155,9 +1162,37 @@ for i in range(4):
         '1' when
             TpdoInterruptEnable = '1' and {1}(31) = '0' -- Valid TPDO
             and (
-                ({1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) ={1}(28 downto 0) and RxFrame_q.Rtr = '1') -- RTR
-                or (Sync_ob = '1' and (({2} = 0 and Tpdo{0}Event_q = '1') or ((({2} > 0 and {2} <= 240) or {2} = x"FC") and Tpdo{0}SyncCounter = {2} - 1))) -- Synchronous
-                or (Tpdo{0}Event = '1' and {2} >= x"FE") -- Asynchronous (event-driven)
+                ({1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) = {1}(28 downto 0) and RxFrame_q.Rtr = '1') -- RTR
+                or (
+                    Sync_ob = '1' and ( -- Synchronous
+                        ({2} = 0 and Tpdo{0}Event_q = '1')
+                        or ({2} = x"FC" and Tpdo{0}RtrInterrupt = '1')
+""".format(i + 1, cob_id.get("name"), xtype.get("name")))
+    if sync_start_mux in objects:
+        sync_start = objects.get(sync_start_mux)
+        fp.write("""                        or (
+                            ({2} > 0 and {2} <= 240) -- Cyclic
+                            and (
+                                ({1} = 0 and Tpdo{0}SyncCounter = {2}) -- Internal SYNC counter
+""".format(i + 1, sync_start.get("name"), xtype.get("name")))
+        if 0x101900 in objects:
+            fp.write("""                                or ({1} > 0 and {2} > 1 and RxFrame.Dlc = b"0001" and RxFrame_q.Data(1) = std_logic_vector({1})) -- Counter from SYNC message
+""".format(i + 1, sync_start.get("name"), objects.get(0x101900).get("name")))
+        fp.write("""                            )
+                        )
+""")
+    else:
+        fp.write("""
+                        or (({2} > 0 and {2} <= 240) and Tpdo{0}SyncCounter = {2})
+""".format(i + 1, None, xtype.get("name")))
+    fp.write("""                    )
+                )
+                or (
+                    Tpdo{0}Event = '1' and ( -- Asynchronous (event-driven)
+                        ({2} = x"FD" and Tpdo{0}RtrInterrupt = '1')
+                        or {2} >= x"FE"
+                    )
+                )
             )
         else '0';
     process (Reset_n, Clock)
@@ -1165,6 +1200,7 @@ for i in range(4):
         if Reset_n = '0' then
             Tpdo{0}Event_q <= '0';
             Tpdo{0}Interrupt <= '0';
+            Tpdo{0}RtrInterrupt <= '0';
             Tpdo{0}SyncCounter <= (others => '0');
         elsif rising_edge(Clock) then
             if Tpdo{0}Event = '1' then
@@ -1177,13 +1213,28 @@ for i in range(4):
             elsif CurrentState = STATE_TPDO{0} then
                 Tpdo{0}Interrupt <= '0';
             end if;
+            if {1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) = {1}(28 downto 0) and RxFrame_q.Rtr = '1' then
+                Tpdo{0}RtrInterrupt <= '1';
+            elsif CurrentState = STATE_TPDO{0} then
+                Tpdo{0}RtrInterrupt <= '0';
+            end if;
             if Sync_ob = '1' then
                 if CurrentState = STATE_RESET_COMM then
-                    Tpdo{0}SyncCounter <= (others => '0'); -- TODO: Set this to sub-index 6
-                elsif Tpdo{0}SyncCounter < {2} - 1 then
+""".format(i + 1, cob_id.get("name"), xtype.get("name")))
+    if sync_start_mux in objects:
+        fp.write("""                    if {0} = 0 then
+                        Tpdo{0}SyncCounter <= to_unsigned(1, Tpdo{0}SyncCounter'length);
+                    else
+                        Tpdo{0}SyncCounter <= {1};
+                    end if;
+""".format(i + 1, objects.get(sync_start_mux).get("name")))
+    else:
+        fp.write("""                    Tpdo{0}SyncCounter <= to_unsigned(1, Tpdo{0}SyncCounter'length);
+""".format(i + 1, cob_id.get("name")))
+    fp.write("""                elsif Tpdo{0}SyncCounter < {2} then
                     Tpdo{0}SyncCounter <= Tpdo{0}SyncCounter + 1;
                 else
-                    Tpdo{0}SyncCounter <= (others => '0');
+                    Tpdo{0}SyncCounter <= to_unsigned(1, Tpdo{0}SyncCounter'length);
                 end if;
             end if;
         end if;
