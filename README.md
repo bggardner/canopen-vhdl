@@ -35,12 +35,13 @@ Data type lengths of 0 (undefined) and greater than 32 support "ro" access via S
 | 0x1001  | Error register              | OR'd with ErrorRegister (in) port |
 | 0x1005  | COB-ID SYNC                 | 11-bit CAN-ID only |
 | 0x1006  | Communication cycle period  | |
+| 0x1007  | Synchronous window length   | Ineffective, no EMCY |
 | 0x1012  | COB-ID TIME                 | consumer only, 11-bit CAN-ID only |
 | 0x1014  | COB-ID EMCY                 | producer only, 11-bit CAN-ID only, generic EECs only, no MSEFs, reset error EMCY write only when no errors |
 | 0x1016  | Consumer heartbeat time     | one consumer only |
 | 0x1017  | Producer heartbeat time     | |
 | 0x1018  | Identity object             | |
-| 0x1019  | Synchronous counter overflow value | |
+| 0x1019  | Synchronous counter overflow value | No EMCY |
 | 0x1021  | Store EDS                   | Uses Segmented SDO interface |
 | 0x1022  | Store format                | |
 | 0x1029  | Error behavior              | sub-indices 0x00-0x02 only, error class values 0x00-0x02 only |

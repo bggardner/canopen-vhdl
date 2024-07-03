@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 """Generates a VHDL entity from CiA306-1 compliant EDS file
 
 Run eds2vhdl.py -h for usage
@@ -1216,18 +1216,28 @@ for i in range(4):
     process (Reset_n, Clock)
         variable EventTimer : natural range 0 to 65535;
         variable InhibitTimer : natural range 0 to 65535;
+        variable SynchronousWindowTimer : unsigned(31 downto 0);
     begin
         if Reset_n = '0' then
             EventTimer := 0;
             InhibitTimer := 0;
+            SynchronousWindowTimer := (others => '0');
             Tpdo{0}EventInterrupt <= '0';
             Tpdo{0}Interrupt <= '0';
             Tpdo{0}RtrInterrupt <= '0';
             Tpdo{0}SyncCounter <= (others => '0');
         elsif rising_edge(Clock) then
-            if CurrentState = STATE_TPDO{0} then
-                Tpdo{0}EventInterrupt <= '0';
 """.format(i + 1, None, xtype.get("name")))
+    if 0x100700 in objects:
+        fp.write("""
+            if CurrentState = STATE_TPDO{0} or (({1} <= 240 or {1} = x"FC") and {2} > 0 and SynchronousWindowTimer = {2}) then
+""".format(i + 1, xtype.get("name"), objects.get(0x100700).get("name")))
+    else:
+        fp.write("""
+            if CurrentState = STATE_TPDO{0} then
+""".format(i + 1))
+    fp.write("""                Tpdo{0}EventInterrupt <= '0';
+""".format(i + 1))
     if xtype_mux in objects:
         if inhibit_time_mux in objects and event_timer_mux in objects:
             inhibit_time = objects.get(inhibit_time_mux)
@@ -1235,6 +1245,7 @@ for i in range(4):
             fp.write("""            elsif InhibitTimer = {2} and (Tpdo{0}Event = '1' or ({1} >= x"FE" and {3} > 0 and EventTimer = {3})) then
                 Tpdo{0}EventInterrupt <= '1';
             end if;
+
             if
                 Tpdo{0}Event = '1'
                 or CurrentState = STATE_TPDO{0}
@@ -1245,6 +1256,7 @@ for i in range(4):
             elsif EventTimer < {3} and MillisecondEnable = '1' then
                 EventTimer := EventTimer + 1;
             end if;
+
             if
                 CurrentState = STATE_TPDO{0}
                 or {2} = 0 -- Inhibit time disabled
@@ -1259,6 +1271,7 @@ for i in range(4):
             fp.write("""            elsif InhibitTimer = {2} and Tpdo{0}Event = '1' and {1} >= x"FE" then
                 Tpdo{0}EventInterrupt <= '1';
             end if;
+
             if
                 CurrentState = STATE_TPDO{0}
                 or {2} = 0 -- Inhibit time disabled
@@ -1273,6 +1286,7 @@ for i in range(4):
             fp.write("""            elsif Tpdo{0}Event = '1' or ({1} >= x"FE" and {2} > 0 and EventTimer = {2}) then
                 Tpdo{0}EventInterrupt <= '1';
             end if;
+
             if
                 Tpdo{0}Event = '1'
                 or CurrentState = STATE_TPDO{0}
@@ -1288,16 +1302,19 @@ for i in range(4):
                 Tpdo{0}EventInterrupt <= '1';
 """.format(i + 1))
     fp.write("""            end if;
+
             if CurrentState = STATE_TPDO{0} then
                 Tpdo{0}Interrupt <= '0';
             elsif Tpdo{0}InterruptEnable = '1' then
                 Tpdo{0}Interrupt <= '1';
             end if;
+
             if CurrentState = STATE_TPDO{0} then
                 Tpdo{0}RtrInterrupt <= '0';
             elsif {1}(30) = '0' and CurrentState = STATE_CAN_RX_READ and RxFrame_q.Ide = {1}(29) and unsigned(RxFrame_q.Id) = {1}(28 downto 0) and RxFrame_q.Rtr = '1' then
                 Tpdo{0}RtrInterrupt <= '1';
             end if;
+
             if Sync_ob = '1' then
                 if CurrentState = STATE_RESET_COMM then
 """.format(i + 1, cob_id.get("name"), xtype.get("name")))
@@ -1317,9 +1334,23 @@ for i in range(4):
                     Tpdo{0}SyncCounter <= to_unsigned(1, Tpdo{0}SyncCounter'length);
                 end if;
             end if;
+""".format(i + 1, cob_id.get("name"), xtype.get("name")))
+    if 0x100700 in objects:
+        fp.write("""
+            if
+                Sync_ob = '1'
+                or {1} = 0 -- Synchronous window length disabled
+                or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1007" and TxSdoInitiateMuxSubIndex = x"00") -- Successful SDO Download
+            then
+                SynchronousWindowTimer := (others => '0');
+            elsif SynchronousWindowTimer < {1} and MicrosecondEnable = '1' then
+                SynchronousWindowTimer := SynchronousWindowTimer + 1;
+            end if;
+""".format(i + 1, objects.get(0x100700).get("name")))
+    fp.write("""
         end if;
     end process;
-""".format(i + 1, cob_id.get("name"), xtype.get("name")))
+""")
 
 fp.write("""
     -- TPDO mappings
