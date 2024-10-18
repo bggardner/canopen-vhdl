@@ -110,20 +110,22 @@ def make_object(o):
         obj["default_value"] = format_value(default_value, bit_length)
     elif default_value is not None:
         obj["name"] = format_signal(name)
-        if default_value.startswith("$NODEID+"):
-            obj["default_value"] = " & std_logic_vector(NodeId_q)" # TODO: fix zero_pad here
-            default_value = int(default_value[8:], 0)
-            if default_value & 0x7F:
-                  raise ValueError("Default value for '" + o.get("parametername") + "' unsupported")
-            default_value >>= 7
-            bit_length -= 7
+        if default_value.startswith("$NODEID"):
+            obj["default_value"] = "NodeId_q"
+            if len(default_value) > 7:
+                if default_value[7] != "+":
+                    raise Exception(f"Invalid value syntax: {default_value}")
+                default_value = int(default_value[8:], 0)
+                if default_value < 0:
+                    raise Exception(f"Negative $NODEID offsets are not allowed")
+            else:
+                default_value = 0
+            obj["default_value"] = f"{obj.get("data_type")[:obj.get("data_type").index("(")]}(resize(unsigned(NodeId_q), {bit_length}) + to_unsigned({default_value}, {bit_length}))"
         else:
             default_value = int(default_value, 0)
-        obj["default_value"] = format_value(default_value, bit_length) + obj.get("default_value", "")
+            obj["default_value"] = format_value(default_value, bit_length)
     else:
         obj["name"] = format_signal(name)
-    if default_value is not None and not obj.get("data_type").startswith("std_logic") and obj.get("default_value").endswith("std_logic_vector(NodeId_q)"):
-        obj["default_value"] = obj.get("data_type")[:obj.get("data_type").index("(")] + "(" + obj.get("default_value") + ")"
     obj["pdo_mapping"] = o.get("pdomapping", "0") == "1"
     obj["direction"] = "in" if obj.get("access_type") == "ro" else "out"
     if obj.get("access_type") in ["rw", "wo"]:
@@ -287,6 +289,8 @@ for i in range(4, 0, -1):
     xtype_mux = ((0x1800 + i - 1) << 8) + 0x02
     if xtype_mux in objects:
         xtype = objects.get(xtype_mux)
+        if xtype.get("access_type") not in ["rw", "const"]:
+            raise ValueError(f"Access type for TPDO{i + 1} transmission type must be 'rw' or 'const'")
         if xtype.get("access_type") == "rw" or (xtype.get("access_type") == "const" and intval(xtype.get("default_value"), 0) in [0x00, 0xFD, 0xFE, 0xFF]):
             port_signals.insert(0, {
                 "name": f"Tpdo{i}Event",
@@ -1194,7 +1198,7 @@ for i in range(4):
                                 ({1} = 0 and Tpdo{0}SyncCounter = {2}) -- Internal SYNC counter
 """.format(i + 1, sync_start.get("name"), xtype.get("name")))
         if 0x101900 in objects:
-            fp.write("""                                or ({1} > 0 and {2} > 1 and RxFrame.Dlc = b"0001" and RxFrame_q.Data(1) = std_logic_vector({1})) -- Counter from SYNC message
+            fp.write("""                                or ({1} > 0 and {2} > 1 and RxFrame.Dlc = b"0001" and RxFrame_q.Data(0) = std_logic_vector({1})) -- Counter from SYNC message
 """.format(i + 1, sync_start.get("name"), objects.get(0x101900).get("name")))
         fp.write("""                            )
                         )
