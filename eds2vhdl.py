@@ -21,9 +21,9 @@ def format_constant(name, **kwargs):
     name = name.upper()
     name = name.replace(" ", "_")
     name = re.sub(r"\b-\b", "_", name) # Replace hyphenated words with underscore
-    name = re.sub("[^\w]", "", name) # Remove illegal characters
-    name = re.sub("_{1,}", "_", name) # Remove multiple underscores
-    if re.match("[\d_]", name) is not None:
+    name = re.sub(r"[^\w]", "", name) # Remove illegal characters
+    name = re.sub(r"_{1,}", "_", name) # Remove multiple underscores
+    if re.match(r"[\d_]", name) is not None:
         raise ValueException("Invalid object name '" + name + "'. Must start with a letter.")
     if "prefix" in kwargs:
         prefix = kwargs["prefix"]
@@ -291,7 +291,7 @@ for i in range(4, 0, -1):
         xtype = objects.get(xtype_mux)
         if xtype.get("access_type") not in ["rw", "const"]:
             raise ValueError(f"Access type for TPDO{i + 1} transmission type must be 'rw' or 'const'")
-        if xtype.get("access_type") == "rw" or (xtype.get("access_type") == "const" and intval(xtype.get("default_value"), 0) in [0x00, 0xFD, 0xFE, 0xFF]):
+        if xtype.get("access_type") in ["rw", "wo"] or (xtype.get("access_type") == "const" and int(od.get(xtype_mux >> 8).get("subs").get(xtype_mux & 0xFF).get("defaultvalue"), 0) in [0x00, 0xFD, 0xFE, 0xFF]):
             port_signals.insert(0, {
                 "name": f"Tpdo{i}Event",
                 "direction": "in",
@@ -430,7 +430,7 @@ architecture Behavioral of """ + entity_name + """ is
     signal EmcyMsef         : std_logic_vector(39 downto 0); -- Manufacturer-specific error code
     signal Timestamp_ob     : CanOpen.TimeOfDay;
 """)
-if 0x101900 in objects:
+if 0x100500 in objects and 0x100600 in objects and 0x101900 in objects:
     fp.write("""    signal SynchronousCounter       : unsigned(7 downto 0);
 """)
 fp.write("""
@@ -495,6 +495,23 @@ fp.write("""
     alias  TxSdoBlockUploadEndN             : std_logic_vector(2 downto 0) is TxSdo(4 downto 2);
     alias  TxSdoBlockUploadEndCrc           : std_logic_vector(15 downto 0) is TxSdo(23 downto 8);
 
+    -- Event triggers (unused)
+""")
+
+for i in range(1, 5):
+    cob_id_mux = ((0x1800 + i - 1) << 8) + 0x01
+    xtype_mux = ((0x1800 + i - 1) << 8) + 0x02
+    if xtype_mux in objects:
+        xtype = objects.get(xtype_mux)
+        if xtype.get("access_type") in ["const", "ro"] and int(od.get(xtype_mux >> 8).get("subs").get(xtype_mux & 0xFF).get("defaultvalue"), 0) in list(range(1, 0xFC)):
+            fp.write(f"""    signal Tpdo{i}Event : std_logic;
+""")
+    else:
+        fp.write(f"""    signal Tpdo{i}Event : std_logic;
+""")
+
+
+fp.write("""
     -- Interrupts
     signal EmcyInterrupt,
            HeartbeatProducerInterrupt,
@@ -524,7 +541,7 @@ fp.write("""
            Tpdo3SyncCounter,
            Tpdo4SyncCounter     : unsigned(7 downto 0);
 
-    -- Object dictionary indices: Manufacturer-specific profile area
+    -- Object dictionary indices
 """);
 for odi in od:
     obj = od.get(odi)
@@ -891,7 +908,6 @@ if 0x100500 in objects and 0x100600 in objects:
     process (Reset_n, Clock)
         variable SyncPending : boolean;
         variable SyncProducerCounter   : unsigned(31 downto 0);
-        variable SyncConsumerReset     : std_logic;
     begin
         if Reset_n = '0' then
             SyncPending := false;
@@ -902,7 +918,7 @@ if 0x100500 in objects and 0x100600 in objects:
             if (
                 NmtState_ob = CanOpen.NMT_STATE_INITIALISATION
                 or NmtState_ob = CanOpen.NMT_STATE_STOPPED
-                or {0}(30) = '0'
+                or {0}(30) = '0' -- Not SYNC producer
                 or {1} = 0
                 or CurrentState = STATE_RESET_COMM
                 or (CurrentState = STATE_SDO_TX and TxSdoCs = CanOpen.SDO_SCS_IDR and TxSdoInitiateMuxIndex = x"1006" and TxSdoInitiateMuxSubIndex = x"00") -- Successful SDO Download
@@ -915,7 +931,9 @@ if 0x100500 in objects and 0x100600 in objects:
                     SyncProducerCounter := SyncProducerCounter + 1;
                 end if;
             end if;
-            if MicrosecondEnable = '1' and SyncProducerCounter = {1} - 1 then
+            if {0}(30) = '0' then
+                SyncProducerInterrupt <= '0';
+            elsif MicrosecondEnable = '1' and SyncProducerCounter = {1} - 1 then
                 SyncProducerInterrupt <= '1';
             elsif CurrentState = STATE_SYNC then
                 SyncPending := true;
@@ -947,19 +965,19 @@ if 0x100500 in objects and 0x100600 in objects:
             ) then
                 SynchronousCounter <= to_unsigned(1, SynchronousCounter'length);
             elsif SyncAck = '1' then
-                 if SynchronousCounter = {0} then
-                     SynchronousCounter <= to_unsigned(1, SynchronousCounter'length);
-                 else
+                 if SynchronousCounter < {0} then
                      SynchronousCounter <= SynchronousCounter + 1;
+                 else
+                     SynchronousCounter <= to_unsigned(1, SynchronousCounter'length);
                  end if;
             end if;
         end if;
     end process;
 """.format(objects.get(0x101900).get("name")))
 
-
 else:
     fp.write("""
+    SyncAck <= '0';
     SyncProducerInterrupt <= '0';
 """)
 
@@ -977,7 +995,7 @@ fp.write("""
         elsif rising_edge(Clock) then
 """)
 for i in range(8):
-    if i == 6: continue
+    if i == 6: continue # bit 6 is reserved (always 0)
     fp.write("""            if {0}({1}) = '1' and ErrorRegister_q({1}) = '0' then
                 ErrorRegisterInterrupts({1}) := '1';
             end if;
@@ -1158,7 +1176,9 @@ else:
 """)
 
 fp.write("""
-    -- TPDO
+    -----------------------------------------------------------
+    -- TPDOs
+    -----------------------------------------------------------
     TpdoInterruptEnable <= '1' when NmtState_ob = CanOpen.NMT_STATE_OPERATIONAL else '0'; -- "Global" TPDO interrupt enable\n""")
 
 for i in range(4):
@@ -1420,11 +1440,10 @@ fp.write("""
 """)
 
 if 0x100500 in objects:
-    fp.write("""
-            elsif CurrentState = STATE_SYNC then
-                TxFrame.Id(10 downto 0) <= std_logic_vector(""" + objects.get(0x100500).get("name") + """(10 downto 0));
+    fp.write(f"""            elsif CurrentState = STATE_SYNC then
+                TxFrame.Id(10 downto 0) <= std_logic_vector({objects.get(0x100500).get("name")}(10 downto 0));
 """)
-    if 0x101900 in objects:
+    if 0x100600 in objects and 0x101900 in objects:
         fp.write("""
                 if {0} < 2 or {0} > 240 then
                     TxFrame.Dlc <= b"0000";
@@ -1434,17 +1453,20 @@ if 0x100500 in objects:
                     TxFrame.Data(0) <= std_logic_vector(SynchronousCounter);
                 end if;
 """.format(objects.get(0x101900).get("name")))
-    fp.write("""
-                TxFrame.Data(7 downto 1) <= (others => (others => '0'));
+    else:
+        fp.write("""                TxFrame.Dlc <= b"0000";
+                TxFrame.Data(0) <= (others => '0');
+""")
+    fp.write("""                TxFrame.Data(7 downto 1) <= (others => (others => '0'));
 """)
 
 if 0x101400 in objects:
-    fp.write("""            elsif CurrentState = STATE_EMCY then
-                TxFrame.Id(10 downto 0) <= std_logic_vector(""" + objects.get(0x101400).get("name") + """(10 downto 0));
+    fp.write(f"""            elsif CurrentState = STATE_EMCY then
+                TxFrame.Id(10 downto 0) <= std_logic_vector({objects.get(0x101400).get("name")}(10 downto 0));
                 TxFrame.Dlc <= b"1000";
                 TxFrame.Data(0) <= EmcyEec(7 downto 0);
                 TxFrame.Data(1) <= EmcyEec(15 downto 8);
-                TxFrame.Data(2) <= std_logic_vector(""" + objects.get(0x100100).get("name") + """);
+                TxFrame.Data(2) <= std_logic_vector({objects.get(0x100100).get("name")});
                 TxFrame.Data(3) <= EmcyMsef(7 downto 0);
                 TxFrame.Data(4) <= EmcyMsef(15 downto 8);
                 TxFrame.Data(5) <= EmcyMsef(23 downto 16);
@@ -1473,8 +1495,8 @@ for i in range(4):
 """.format(i + 1, obj.get("name"), dlc))
 if 0x120002 in objects:
     obj = objects.get(0x120002)
-    fp.write("""            elsif CurrentState = STATE_SDO_TX then
-                TxFrame.Id(10 downto 0) <= std_logic_vector(""" + obj.get("name") + """(10 downto 0));
+    fp.write(f"""            elsif CurrentState = STATE_SDO_TX then
+                TxFrame.Id(10 downto 0) <= std_logic_vector({obj.get("name")}(10 downto 0));
                 TxFrame.Dlc <= b"1000";
                 TxFrame.Data(0) <= TxSdo(7 downto 0);
                 TxFrame.Data(1) <= TxSdo(15 downto 8);
@@ -1494,29 +1516,12 @@ fp.write("""            elsif CurrentState = STATE_HEARTBEAT then
     end process;
 """)
 
-fp.write("""
-    -- Save SDO request
-""")
-if 0x120001 in objects:
-    obj = objects.get(0x120001)
-    fp.write("""    process (Clock, Reset_n)
-    begin
-        if Reset_n = '0' then
-            RxSdo <= (others => '0');
-        elsif rising_edge(Clock) then
-            if CurrentState = STATE_CAN_RX_READ and {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then -- SDO Request, ignore if not 8 data bytes
-                RxSdo <= RxFrame_q.Data(7) & RxFrame_q.Data(6) & RxFrame_q.Data(5) & RxFrame_q.Data(4) & RxFrame_q.Data(3) & RxFrame_q.Data(2) & RxFrame_q.Data(1) & RxFrame_q.Data(0);
-            end if;
-        end if;
-    end process;
-""".format(obj.get("name")))
-else:
-    fp.write("""    RxSdo <= (others => '0');
-""")
-
 if 0x120001 in objects:
     fp.write("""
+    -----------------------------------------------------------
     -- SDO
+    -----------------------------------------------------------
+
     RxSdoInitiateMux <= RxSdoInitiateMuxIndex & RxSdoInitiateMuxSubIndex;
     process (Clock, Reset_n, SegmentedSdoData, SegmentedSdoDataValid)
         variable SegmentedSdoReadBytes : unsigned(31 downto 0);
@@ -1583,7 +1588,7 @@ if 0x120001 in objects:
 """.format(objects.get(0x120001).get("name")))
     for mux in objects:
         obj = objects.get(mux)
-        fp.write("""                            when """ + format_constant(obj.get("parameter_name"), prefix="\\ODI_") + """ =>
+        fp.write(f"""                            when {format_constant(obj.get("parameter_name"), prefix="\\ODI_")} =>
 """)
         if obj.get("access_type") in ["const", "ro"]:
             fp.write("""                                TxSdoCs <= CanOpen.SDO_CS_ABORT;
@@ -1598,7 +1603,7 @@ if 0x120001 in objects:
                 if obj.get("data_type") == "std_logic":
                      assignment += "(0)"
             else:
-                assignment = re.sub("(\w+)\(", r"\1(RxSdoDownloadInitiateData(", obj.get("data_type")) + ")"
+                assignment = re.sub(r"(\w+)\(", r"\1(RxSdoDownloadInitiateData(", obj.get("data_type")) + ")"
             conditionals = []
             if obj.get("low_limit") is not None:
                 conditionals.append(assignment + " >= " + obj.get("low_limit"))
@@ -1640,7 +1645,7 @@ if 0x120001 in objects:
 """)
     for mux in objects:
         obj = objects.get(mux)
-        fp.write("""                        when """ + format_constant(obj.get("parameter_name"), prefix="\\ODI_") + """ =>
+        fp.write(f"""                        when {format_constant(obj.get("parameter_name"), prefix="\\ODI_")} =>
 """)
         if obj.get("access_type") == "wo":
             fp.write("""                            TxSdoCs <= CanOpen.SDO_CS_ABORT;
@@ -1675,11 +1680,11 @@ if 0x120001 in objects:
                 if not obj.get("data_type").startswith("std_logic"):
                      data += ")"
                 data = zero_fill(32 - obj.get("bit_length")) + data
-            fp.write("""                            TxSdoCs <= CanOpen.SDO_""" + cs + """;
-                            TxSdoUploadInitiateN <= b"{:02b}";
-                            TxSdoUploadInitiateE <= '{:d}';
-                            TxSdoUploadInitiateS <= '{:d}';
-                            TxSdoUploadInitiateD <= """.format(n, e, s) + data + """;
+            fp.write(f"""                            TxSdoCs <= CanOpen.SDO_{cs};
+                            TxSdoUploadInitiateN <= b"{n:02b}";
+                            TxSdoUploadInitiateE <= '{e:d}';
+                            TxSdoUploadInitiateS <= '{s:d}';
+                            TxSdoUploadInitiateD <= {data};
 """)
             if e == 0:
                 fp.write("""                            SdoActive := true;
@@ -1979,6 +1984,26 @@ else:
 """)
 
 fp.write("""
+    -- Save SDO request
+""")
+if 0x120001 in objects:
+    obj = objects.get(0x120001)
+    fp.write("""    process (Clock, Reset_n)
+    begin
+        if Reset_n = '0' then
+            RxSdo <= (others => '0');
+        elsif rising_edge(Clock) then
+            if CurrentState = STATE_CAN_RX_READ and {0}(31) = '0' and RxFrame_q.Ide = {0}(29) and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc(3) = '1' then -- SDO Request, ignore if not 8 data bytes
+                RxSdo <= RxFrame_q.Data(7) & RxFrame_q.Data(6) & RxFrame_q.Data(5) & RxFrame_q.Data(4) & RxFrame_q.Data(3) & RxFrame_q.Data(2) & RxFrame_q.Data(1) & RxFrame_q.Data(0);
+            end if;
+        end if;
+    end process;
+""".format(obj.get("name")))
+else:
+    fp.write("""    RxSdo <= (others => '0');
+""")
+
+fp.write("""
     -- Object dictionary communication profile area assignments
 """)
 if 0x100500 in objects:
@@ -2009,7 +2034,7 @@ for mux in objects:
             if obj.get("data_type") == "std_logic":
                 assignment += "(0)"
         else:
-            assignment = re.sub("(\w+)\(", r"\1(RxSdoDownloadInitiateData(", obj.get("data_type")) + ")"
+            assignment = re.sub(r"(\w+)\(", r"\1(RxSdoDownloadInitiateData(", obj.get("data_type")) + ")"
         fp.write("""    process (Clock, Reset_n)
     begin
         if Reset_n = '0' then
@@ -2038,7 +2063,7 @@ for mux in objects:
         if obj.get("data_type") == "std_logic":
              assignment += "(0)"
     else:
-        assignment = re.sub("(\w+)\(", r"\1(RxSdoDownloadInitiateData(", obj.get("data_type")) + ")"
+        assignment = re.sub(r"(\w+)\(", r"\1(RxSdoDownloadInitiateData(", obj.get("data_type")) + ")"
     limit_check = ""
     if obj.get("low_limit") is not None:
         limit_check += " and {} >= {}".format(assignment, obj.get("low_limit"))
@@ -2092,8 +2117,8 @@ fp.write("""
 -- Component declaration template
 --    """ + "\n--    ".join(template.format("component", entity_name, "" if len(port_signals) == 0 else ";").split("\n")))
 fp.write("\n\n")
-fp.write("""-- Component instantiation template
---    CanOpenController : """ + entity_name + """
+fp.write(f"""-- Component instantiation template
+--    CanOpenController : {entity_name}
 --        generic map (
 --            CLOCK_FREQUENCY => CLOCK_FREQUENCY
 --        )
