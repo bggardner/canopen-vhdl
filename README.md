@@ -96,6 +96,8 @@ SegmentedSdoDataValid      _____________________|¯¯¯¯¯¯¯|___|¯¯¯¯¯¯
 
 `src/CanOpenIndicators.vhd` contains a module that can convert the CANopen NMT State and CAN status signals into the appropriate CiA 303-3 indicator signals.
 
+`src/SegmentedSdo*.vhd` interface adapters between the Segmented SDO interface (above) and various memory configurations (RAM, ROM, etc.).
+
 `test/CanOpenNode_tb.vhd` is a testbench that performs SDO, NMT, SYNC, and GFC commands on the simple CANopen slave device.
 
 `eds2mem.py` generates a memory file (MEM) from an EDS (or any other) file to be loaded into RAM/ROM, specifically for use with CANopen DOMAIN objects (such as 0x1021: Store EDS) accessed via segmented SDO.  `eds2mem.py -h` for usage.
