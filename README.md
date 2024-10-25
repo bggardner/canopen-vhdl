@@ -62,42 +62,41 @@ Low-to-high bit transitions perform EMCY write with CanOpen.EMCY_EEC_GENERIC; to
 ### Segmented SDO interface
 For transferring DOMAIN data via segmented (normal or block). All signals are synchronous to Clock.
 
-| Port | Direction | Data type | Description |
-| ---- | --------- | --------- | ----------- |
-| SegmentedSdoMux             | out | std_logic_vector(23 downto 0) | Concatenation of object dictionary index and subindex. Ex: 0x101801 for Identify object, Vendor-ID |
-| SegmentedSdoReadEnable      | out | std_logic                     | Start/!stop: Asserted high during entire data transfer, deasserted when finished or aborted |
-| SegmentedSdoDataReadEnable  | out | std_logic                     | Ready/!Ack: Asserted high until SegmentedSdoDataValid = '1', deasserted when SegmentedSdoDataValid = '1' |
-| SegmentedSdoData            | in  | std_logic_vector(55 downto 0) | Data size (32-bit max), in bytes, from when SegmentedSdoReadEnable = '1' to first subsequent SegmentedSdoDataReadEnable = '1', then segment data with LSB first |
-| SegmentedSdoDataValid       | in  | std_logic                     | Asserted when SegmentedSdoData is valid, deasserted when SegmentedSdoReadValid = '0' or SegmentedSdoReadEnable = '0' |
+| Port | Direction | Data type | FIFO Equivalent | Description |
+| ---- | --------- | --------- | --------------- | ----------- |
+| `SegmentedSdoMux`             | `out` | `std_logic_vector(23 downto 0)` | Address | Concatenation of object dictionary index and subindex. Ex: 0x101801 for Identity object, Vendor-ID |
+| `SegmentedSdoReadEnable`      | `out` | `std_logic`                     | Enable | Start/!stop: Asserted high during entire data transfer, deasserted when finished or aborted |
+| `SegmentedSdoDataReadEnable`  | `out` | `std_logic`                     | Full | Ready/!Ack: Asserted high until one clock cycle after `SegmentedSdoDataValid = '1'` |
+| `SegmentedSdoData`            | `in`  | `std_logic_vector(55 downto 0)` | Data | Initially data size (32-bit max), in bytes, from when `SegmentedSdoReadEnable = '1'` to first `SegmentedSdoDataReadEnable = '1'`, then segment data with LSB first |
+| `SegmentedSdoDataValid`       | `in`  | `std_logic`                     | WriteEnable | Asserted when SegmentedSdoData is valid, deasserted when `SegmentedSdoReadValid = '0'` or `SegmentedSdoReadEnable = '0'` |
 
 #### Timing diagram:
 ```
-Clock                      _|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯···|_|¯|_|¯|_|¯
+Clock                      _|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯···_|¯|_|¯|_
 
-                             ______________________________________   ______
-SegmentedSdoMux            XXXXX                                      ···      XXXXXX
-                             ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯   ¯¯¯¯¯¯
+                                __________________________________   ______
+SegmentedSdoMux            XXXXX                                  ···      XXX
+                                ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯   ¯¯¯¯¯¯
 
-SegmentedSdoReadEnable     _____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯···¯¯¯¯¯¯|_____
+SegmentedSdoReadEnable     _____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯···¯¯¯¯¯|___
 
 
-SegmentedSdoReadDataEnable _________________|¯¯¯¯¯¯¯|___|¯¯¯¯¯¯¯|___|¯···¯¯¯¯¯¯|_____
+SegmentedSdoReadDataEnable _____________|¯¯¯¯¯¯¯|___|¯¯¯¯¯¯¯|___|¯···¯¯¯¯¯|___
 
-                                 ___________ ________    ________       ________
-SegmentedSdoData           XXXXXXXXX   size    X   D0   XXXX   D1   XX···XX   DN   XX
-                                 ¯¯¯¯¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯    ¯¯¯¯¯¯¯¯       ¯¯¯¯¯¯¯¯
+                                 _______ ________    ________    _   ______
+SegmentedSdoData           XXXXXX size  X   D0   XXXX   D1   XXXX ··· DN   XXX
+                                 ¯¯¯¯¯¯¯ ¯¯¯¯¯¯¯¯    ¯¯¯¯¯¯¯¯    ¯   ¯¯¯¯¯¯
 
-SegmentedSdoDataValid      _____________________|¯¯¯¯¯¯¯|___|¯¯¯¯¯¯¯|_···__|¯¯¯¯¯¯¯|_
+SegmentedSdoDataValid      _________________|¯¯¯¯¯¯¯|___|¯¯¯¯¯¯¯|_···¯¯¯¯¯|___
 ```
 
 ## Other Files
 
-`src/CanOpen_pkg.vhd` defines some standard CANopen values and record types for readability as well as helper functions.  Required.
+`eds2mem.py` generates a memory file (MEM) from an EDS (or any other) file to be loaded into RAM/ROM, specifically for use with CANopen DOMAIN objects (such as 0x1021: Store EDS) accessed via segmented SDO.  `eds2mem.py -h` for usage.
+
+`src/CanOpen_pkg.vhd` defines standard CANopen constants and record types, as well as helper functions.  Required.
 
 `src/CanOpenIndicators.vhd` contains a module that can convert the CANopen NMT State and CAN status signals into the appropriate CiA 303-3 indicator signals.
 
 `src/SegmentedSdo*.vhd` interface adapters between the Segmented SDO interface (above) and various memory configurations (RAM, ROM, etc.).
 
-`test/CanOpenNode_tb.vhd` is a testbench that performs SDO, NMT, SYNC, and GFC commands on the simple CANopen slave device.
-
-`eds2mem.py` generates a memory file (MEM) from an EDS (or any other) file to be loaded into RAM/ROM, specifically for use with CANopen DOMAIN objects (such as 0x1021: Store EDS) accessed via segmented SDO.  `eds2mem.py -h` for usage.

@@ -19,8 +19,8 @@ entity SegmentedSdoXpmSdpRam is
         Reset_n         : in std_logic;
         WriteData       : in std_logic_vector(WRITE_WIDTH - 1 downto 0);
         WriteEnable     : in std_logic;
-        ReadEnable      : in std_logic; --! Prevents writing
-        ReadDataEnable  : in std_logic; --! Hold high until ReadValid goes high
+        ReadEnable      : in std_logic; -- Prevents writing
+        ReadDataEnable  : in std_logic; -- Hold high until ReadValid goes high
         ReadData        : out std_logic_vector(55 downto 0);
         ReadValid       : out std_logic;
         WriteBusy       : out std_logic
@@ -120,10 +120,10 @@ begin
                         WriteDataByte <= WriteData_q(to_integer(shift_left(to_unsigned(WriteCounter, WRITE_WIDTH), 3)) + 7 downto to_integer(shift_left(to_unsigned(WriteCounter, WRITE_WIDTH), 3)));
                     end if;
                 end if;
-            elsif ReadByteCount = WriteByteCount then --! Successful reading
+            elsif ReadByteCount = WriteByteCount then -- Successful reading
                 WriteEnable_q <= '0';
                 WriteByteCount <= (others => '0');
-            elsif WriteEnable_q = '1' then --! Write interrupted by read
+            elsif WriteEnable_q = '1' then -- Write interrupted by read
                 WriteByteCount <= WriteByteCount - WriteCounter;
                 WriteAddress <= WriteAddress - WriteCounter;
                 WriteEnable_q <= '0';
@@ -138,7 +138,7 @@ begin
             if ReadEnable = '0' then
                 ReadAddressCounter := 0;
                 ReadByteCount <= (others => '0');
-                ReadAddress <= WriteAddress - WRITE_BYTES; --! Start at LSB
+                ReadAddress <= WriteAddress - WRITE_BYTES; -- Start at LSB
                 ReadData_d <= x"000000" & std_logic_vector(WriteByteCount);
                 ReadValid_ob := '0';
             elsif ReadDataEnable = '1' then
@@ -149,7 +149,7 @@ begin
                         ReadAddressCounter := ReadAddressCounter + 1;
                         if ReadAddressCounter = WRITE_BYTES then
                             ReadAddressCounter := 0;
-                            ReadAddress <= ReadAddress - 2 * WRITE_BYTES + 1; --! Rewind to LSB of previous word
+                            ReadAddress <= ReadAddress - 2 * WRITE_BYTES + 1; -- Rewind to LSB of previous word
                         else
                             ReadAddress <= ReadAddress + 1;
                         end if;

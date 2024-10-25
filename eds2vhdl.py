@@ -886,10 +886,7 @@ fp.write("""
             """)
 if 0x101200 in objects:
     fp.write("""if CurrentState = STATE_CAN_RX_READ and {0}(31) = '1' and unsigned(RxFrame_q.Id(10 downto 0)) = {0}(10 downto 0) and RxFrame_q.Dlc = b"0110" then
-                Timestamp_ob <= (
-                    Milliseconds => unsigned(RxFrame_q.Data(3)(3 downto 0) & RxFrame_q.Data(2) & RxFrame_q.Data(1) & RxFrame_q.Data(0)),
-                    Days => unsigned(RxFrame_q.Data(5) & RxFrame_q.Data(4))
-                );
+                Timestamp_ob <= CanOpen.to_TimeOfDay(RxFrame_q.Data);
             els""".format(objects.get(0x101200).get("name")))
 fp.write("""if MillisecondEnable = '1' then
                 if Timestamp_ob.Milliseconds = 1000*60*60*24 - 1 then
@@ -900,11 +897,12 @@ fp.write("""if MillisecondEnable = '1' then
                 end if;
             end if;
         end if;
-    end process;""")
+    end process;
+
+    -- Sync producer timer""")
 
 if 0x100500 in objects and 0x100600 in objects:
     fp.write("""
-    -- Sync producer timer
     process (Reset_n, Clock)
         variable SyncPending : boolean;
         variable SyncProducerCounter   : unsigned(31 downto 0);
@@ -1484,28 +1482,14 @@ for i in range(4):
     fp.write("""            elsif CurrentState = STATE_TPDO{0} then
                 TxFrame.Id(10 downto 0) <= std_logic_vector({1}(10 downto 0));
                 TxFrame.Dlc <= b"{2:04b}";
-                TxFrame.Data(0) <= Tpdo{0}Data(7 downto 0);
-                TxFrame.Data(1) <= Tpdo{0}Data(15 downto 8);
-                TxFrame.Data(2) <= Tpdo{0}Data(23 downto 16);
-                TxFrame.Data(3) <= Tpdo{0}Data(31 downto 24);
-                TxFrame.Data(4) <= Tpdo{0}Data(39 downto 32);
-                TxFrame.Data(5) <= Tpdo{0}Data(47 downto 40);
-                TxFrame.Data(6) <= Tpdo{0}Data(55 downto 48);
-                TxFrame.Data(7) <= Tpdo{0}Data(63 downto 56);
+                TxFrame.Data <= CanBus.to_DataBytes(Tpdo{0}Data);
 """.format(i + 1, obj.get("name"), dlc))
 if 0x120002 in objects:
     obj = objects.get(0x120002)
     fp.write(f"""            elsif CurrentState = STATE_SDO_TX then
                 TxFrame.Id(10 downto 0) <= std_logic_vector({obj.get("name")}(10 downto 0));
                 TxFrame.Dlc <= b"1000";
-                TxFrame.Data(0) <= TxSdo(7 downto 0);
-                TxFrame.Data(1) <= TxSdo(15 downto 8);
-                TxFrame.Data(2) <= TxSdo(23 downto 16);
-                TxFrame.Data(3) <= TxSdo(31 downto 24);
-                TxFrame.Data(4) <= TxSdo(39 downto 32);
-                TxFrame.Data(5) <= TxSdo(47 downto 40);
-                TxFrame.Data(6) <= TxSdo(55 downto 48);
-                TxFrame.Data(7) <= TxSdo(63 downto 56);
+                TxFrame.Data <= CanBus.to_DataBytes(TxSdo);
 """)
 fp.write("""            elsif CurrentState = STATE_HEARTBEAT then
                 TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL & NodeId_q;

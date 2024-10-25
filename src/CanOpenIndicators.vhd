@@ -6,32 +6,32 @@ use work.CanOpen;
 
 entity CanOpenIndicators is
     generic (
-        CLOCK_FREQUENCY : positive --! Clock frequency in Hz
+        CLOCK_FREQUENCY : positive -- Clock frequency in Hz
     );
     port (
-        Clock       : in  std_logic; --! Clock
-        Reset_n     : in  std_logic; --! Active-low reset
-        NmtState    : in  std_logic_vector(6 downto 0); --! CANopen node NMT state
+        Clock       : in  std_logic; -- Clock
+        Reset_n     : in  std_logic; -- Active-low reset
+        NmtState    : in  std_logic_vector(6 downto 0); -- CANopen node NMT state
         CanStatus   : in  CanBus.Status;
-        RunIndicator: out std_logic; --! Green
-        ErrIndicator: out std_logic --! Red
+        RunIndicator: out std_logic; -- Green
+        ErrIndicator: out std_logic -- Red
     );
 end entity CanOpenIndicators;
 
 architecture Behavioral of CanOpenIndicators is
-    --! CANopen indicator states per CiA 303-3
+    -- CANopen indicator states per CiA 303-3
     type IndicatorState is (
-        INDICATOR_OFF,      --! The LED shall be constantly off.
-        INDICATOR_1FLASH,   --! That shall indicate one short flash (approximately 200 ms) followed by a long off phase (approximately 1000 ms).
-        INDICATOR_2FLASH,   --! That shall indicate a sequence of two short flashes (approximately 200 ms), separated by an off phase (approximately 200 ms). The sequence is finished by a long off phase (approximately 1000 ms).
-        INDICATOR_3FLASH,   --! That shall indicate a sequence of three short flashes (approximately 200 ms), separated by an off phase (approximately 200 ms). The sequence is finished by a long off phase (approximately 1000 ms).
-        INDICATOR_4FLASH,   --! That shall indicate a sequence of four short flashes (approximately 200 ms), separated by an off phase (approximately 200 ms). The sequence is finished by a long off phase (approximately 1000 ms).
-        INDICATOR_BLINK,    --! That shall indicate the iso-phase on and off with a frequency of approximately 2,5 Hz: on for approximately 200 ms followed by off for approximately 200 ms.
-        INDICATOR_FLICKER,  --! That shall indicate the iso-phase on and off with a frequency of approximately 10 Hz: on for approximately 50 ms and off for approximately 50 ms.
-        INDICATOR_ON        --! The LED shall be constantly on.
+        INDICATOR_OFF,      -- The LED shall be constantly off.
+        INDICATOR_1FLASH,   -- That shall indicate one short flash (approximately 200 ms) followed by a long off phase (approximately 1000 ms).
+        INDICATOR_2FLASH,   -- That shall indicate a sequence of two short flashes (approximately 200 ms), separated by an off phase (approximately 200 ms). The sequence is finished by a long off phase (approximately 1000 ms).
+        INDICATOR_3FLASH,   -- That shall indicate a sequence of three short flashes (approximately 200 ms), separated by an off phase (approximately 200 ms). The sequence is finished by a long off phase (approximately 1000 ms).
+        INDICATOR_4FLASH,   -- That shall indicate a sequence of four short flashes (approximately 200 ms), separated by an off phase (approximately 200 ms). The sequence is finished by a long off phase (approximately 1000 ms).
+        INDICATOR_BLINK,    -- That shall indicate the iso-phase on and off with a frequency of approximately 2,5 Hz: on for approximately 200 ms followed by off for approximately 200 ms.
+        INDICATOR_FLICKER,  -- That shall indicate the iso-phase on and off with a frequency of approximately 10 Hz: on for approximately 50 ms and off for approximately 50 ms.
+        INDICATOR_ON        -- The LED shall be constantly on.
     );
     
-    signal ClockEnable          : std_logic; --! Used to divide Clock from CLOCK_FREQUENCY to 20 Hz
+    signal ClockEnable          : std_logic; -- Used to divide Clock from CLOCK_FREQUENCY to 20 Hz
     signal Blink                : std_logic;
     signal Flicker              : std_logic;
     signal Enable1Flash         : std_logic;
@@ -40,7 +40,7 @@ architecture Behavioral of CanOpenIndicators is
     signal Enable4Flash         : std_logic;
     signal RunState, ErrState   : IndicatorState;
 begin
-    --! CANopen indicator states
+    -- CANopen indicator states
     RunState <= INDICATOR_BLINK     when NmtState = CanOpen.NMT_STATE_PREOPERATIONAL else
                 INDICATOR_1FLASH    when NmtState = CanOpen.NMT_STATE_STOPPED else
                 INDICATOR_ON        when NmtState = CanOpen.NMT_STATE_OPERATIONAL else
@@ -49,7 +49,7 @@ begin
                 INDICATOR_1FLASH    when CanStatus.ErrorWarning = '1' else
                 INDICATOR_OFF;
 
-    --! RunIndicator and ErrIndicator must be out of phase
+    -- RunIndicator and ErrIndicator must be out of phase
     process (RunState, Enable1Flash, Enable2Flash, Enable3Flash, Enable4Flash, Blink, Flicker)
     begin
         case RunState is
@@ -80,7 +80,7 @@ begin
         end case;
     end process;
                 
-    --! Generate 20Hz clock enable for CANopen indicators
+    -- Generate 20Hz clock enable for CANopen indicators
     ClockEnableProcess : process (Reset_n, Clock)
         variable Counter    : integer range 0 to CLOCK_FREQUENCY;
     begin
