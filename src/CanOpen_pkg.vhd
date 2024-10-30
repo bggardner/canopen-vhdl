@@ -8,12 +8,28 @@ package CanOpen is
     ------------------------------------------------------------
     -- TYPES
     ------------------------------------------------------------
+    type NodeIdArray is array (integer range <>) of std_logic_vector(6 downto 0);
+
     type TimeOfDay is record
         Milliseconds    : unsigned(27 downto 0);
         Days            : unsigned(15 downto 0);
     end record TimeOfDay;
     
-    type NodeIdArray is array (integer range <>) of std_logic_vector(6 downto 0);
+    type Status is record
+        CanStatus   : CanBus.Status;
+        NmtState    : std_logic_vector(6 downto 0);
+        AutoBitrateOrLss : std_logic; -- AutoBitrate detection (CiA 801) or LSS services (CiA 305) in progress
+        InvalidConfiguration : std_logic; -- General configuration error
+        ErrorControlEvent : std_logic; -- Guard or heartbeat event
+        SyncError   : std_logic; -- Sync message not received within communication cycle period
+        EventTimerError : std_logic; -- PDO not received before event-timer expires
+        ProgramDownload : std_logic; -- Software/firmware download in progress
+    end record Status;
+    
+    type Indicators is record
+        Err : std_logic;
+        Run : std_logic;
+    end record Indicators;
     
 --    type NmtState is (
 --        NMT_STATE_INITIALISATION,
@@ -48,8 +64,15 @@ package CanOpen is
     ------------------------------------------------------------
     -- FUNCTIONS
     ------------------------------------------------------------
+    function is_match(
+        constant FRAME : CanBus.Frame;
+        constant COB_ID : unsigned(31 downto 0)
+    ) return boolean;
+
     function to_DataBytes(constant TIMESTAMP : TimeOfDay) return CanBus.DataBytes;
+
     function to_std_logic_vector(constant TIMESTAMP : TimeofDay) return std_logic_vector;
+
     function to_TimeOfDay(constant DATA_BYTES : CanBus.DataBytes) return TimeOfDay;
         
     -- CRC-16-CCITT/XMODEM algorithm for SDO block upload
@@ -382,6 +405,14 @@ package body CanOpen is
     ------------------------------------------------------------
     -- FUNCTIONS
     ------------------------------------------------------------
+    function is_match(
+        constant FRAME : CanBus.Frame;
+        constant COB_ID : unsigned(31 downto 0)
+    ) return boolean is
+    begin
+        return CanBus.is_match(FRAME, std_logic_vector(COB_ID(28 downto 0)), (others => '1'), COB_ID(29));
+    end function is_match;
+
     function to_DataBytes(constant TIMESTAMP : TimeofDay) return CanBus.DataBytes is
         constant SLV : std_logic_vector(63 downto 0) := x"0000" & to_std_logic_vector(TIMESTAMP);
     begin
@@ -980,6 +1011,7 @@ package body CanOpen is
         constant FILTER_ID : std_logic_vector(10 downto 0) := (others => '0');
         constant FILTER_MASK : std_logic_vector(10 downto 0) := (others => '0')
     ) is
+        constant FILTER_IDE : std_logic := '0';
     begin
         CanBus.FifoToFrame(
             Clock,
@@ -987,7 +1019,8 @@ package body CanOpen is
             FifoWriteEnable,
             Message,
             "000000000000000000" & FILTER_ID,
-            "000000000000000000" & FILTER_MASK
+            "000000000000000000" & FILTER_MASK,
+            FILTER_IDE
         );
     end procedure;
 
