@@ -1560,6 +1560,7 @@ fp.write("""
                 Data => (others => (others => '0'))
             );
         elsif rising_edge(Clock) then
+            TxFrame.Rtr <= '0';
             if CurrentState = STATE_BOOTUP then
                 TxFrame.Id(28 downto 11) <= (others => '0');
                 TxFrame.Id(10 downto 0) <= CanOpen.FUNCTION_CODE_NMT_ERROR_CONTROL & NodeId_q;
