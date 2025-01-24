@@ -1699,7 +1699,7 @@ if 0x120001 in objects:
                     SdoExternal := false;
                     SegmentedSdoReadDataEnable <= '0';
                 elsif RxSdoCs = CanOpen.SDO_CCS_IDR then
-                    TxSdo(4 downto 0) <= (others => '0'); 
+                    TxSdo(4 downto 0) <= (others => '0');
                     TxSdoInitiateMuxIndex <= RxSdoInitiateMuxIndex;
                     TxSdoInitiateMuxSubIndex <= RxSdoInitiateMuxSubIndex;
                     if RxSdoDownloadInitiateE = '0' then
@@ -1803,6 +1803,7 @@ if 0x120001 in objects:
                      data += ")"
                 data = zero_fill(32 - obj.get("bit_length")) + data
             fp.write(f"""                            TxSdoCs <= CanOpen.SDO_{cs};
+                            TxSdo(4) <= '0';
                             TxSdoUploadInitiateN <= b"{n:02b}";
                             TxSdoUploadInitiateE <= '{e:d}';
                             TxSdoUploadInitiateS <= '{s:d}';
