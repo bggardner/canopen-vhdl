@@ -1,8 +1,8 @@
 # canopen-vhdl
-A lightweight CANopen controller in VHDL
+A lightweight CANopen controller in VHDL.
 
 ## eds2vhdl.py
-Generates a VHDL file from a CANopen Electronic Data Sheet (EDS).  `eds2vhdl.py -h` for usage.
+Generates a VHDL file from a CANopen Electronic Data Sheet (EDS).  `eds2vhdl.py -h` for usage.  Requires at least Python 3.12.
 
 ### Names and Ports
 
